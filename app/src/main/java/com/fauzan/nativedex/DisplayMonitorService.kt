@@ -71,6 +71,18 @@ class DisplayMonitorService : Service(), DisplayManager.DisplayListener {
 
     override fun onDisplayRemoved(displayId: Int) {
         Log.i(TAG, "Display removed: $displayId")
+        if (displayId != Display.DEFAULT_DISPLAY) {
+            val manager = AdbConnectionManager.getInstance(this).getManager()
+            if (manager != null && manager.isConnected) {
+                // Revert the DeX hack setting
+                try {
+                    Adb.runShell(manager, "settings delete global navigation_current_color")
+                    Log.i(TAG, "Reverted navigation_current_color setting")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error reverting setting", e)
+                }
+            }
+        }
     }
 
     override fun onDisplayChanged(displayId: Int) {
@@ -92,6 +104,10 @@ class DisplayMonitorService : Service(), DisplayManager.DisplayListener {
                     Log.i(TAG, "Running command: $command")
                     Adb.runShell(manager, command)
                     
+                    val dexHackCommand = "settings put global navigation_current_color -16777216"
+                    Log.i(TAG, "Running hack command: $dexHackCommand")
+                    Adb.runShell(manager, dexHackCommand)
+
                     // Launch Samsung DeX native launcher on the HDMI display
                     val startDexCommand = "am start -n com.sec.android.app.launcher/com.honeyspace.dexservice.SecondaryLauncher --display $displayId"
                     Log.i(TAG, "Running command: $startDexCommand")
