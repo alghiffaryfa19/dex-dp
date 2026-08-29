@@ -30,8 +30,15 @@
 
         <activity
             android:name=".DesktopLauncherActivity"
-            android:exported="false"
-            android:theme="@style/Theme.AppCompat.NoActionBar" />
+            android:exported="true"
+            android:launchMode="singleInstancePerTask"
+            android:excludeFromRecents="true" />
+            
+        <activity
+            android:name=".TouchpadActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait" />
 
         <service
             android:name=".DisplayMonitorService"

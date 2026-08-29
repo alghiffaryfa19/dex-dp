@@ -96,6 +96,13 @@ class DisplayMonitorService : Service(), DisplayManager.DisplayListener {
                     val startDexCommand = "am start -n com.sec.android.app.launcher/com.honeyspace.dexservice.SecondaryLauncher --display $displayId"
                     Log.i(TAG, "Running command: $startDexCommand")
                     Adb.runShell(manager, startDexCommand)
+
+                    // Launch TouchpadActivity on the primary display
+                    val touchpadIntent = Intent(this@DisplayMonitorService, TouchpadActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        putExtra("displayId", displayId)
+                    }
+                    startActivity(touchpadIntent)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error configuring display $displayId", e)
