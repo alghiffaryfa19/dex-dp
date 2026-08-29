@@ -55,7 +55,7 @@ class MainActivity : AppCompatActivity() {
                         if (manager.autoConnect(this@MainActivity, 5_000)) {
                             statusText.text = "ADB already connected!"
                         } else {
-                            WirelessDebugging.askToPair(this@MainActivity)
+                            startService(Intent(this@MainActivity, PairingInputService::class.java))
                             statusText.text = "Follow pairing instructions in notification"
                         }
                     } catch (e: Exception) {

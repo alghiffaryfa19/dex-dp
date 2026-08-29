@@ -11,6 +11,7 @@ import android.os.IBinder
 import android.util.Log
 import android.view.Display
 import androidx.core.app.NotificationCompat
+import io.github.muntashirakon.adb.AbsAdbConnectionManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -84,7 +85,8 @@ class DisplayMonitorService : Service(), DisplayManager.DisplayListener {
         
         serviceScope.launch {
             try {
-                adbManager?.let { manager ->
+                val manager = adbManager
+                if (manager != null) {
                     // 5 is WINDOWING_MODE_FREEFORM
                     val command = "wm set-display-windowing-mode -d $displayId 5"
                     Log.i(TAG, "Running command: $command")
