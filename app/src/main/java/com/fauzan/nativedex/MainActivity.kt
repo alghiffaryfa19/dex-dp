@@ -83,4 +83,8 @@ class MainActivity : AppCompatActivity() {
         val intent = Intent(this, DisplayMonitorService::class.java)
         ContextCompat.startForegroundService(this, intent)
     }
+
+    companion object {
+        const val EXTRA_FROM_PAIRING = "com.fauzan.nativedex.FROM_PAIRING"
+    }
 }
