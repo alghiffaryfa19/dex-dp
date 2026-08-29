@@ -92,8 +92,10 @@ class DisplayMonitorService : Service(), DisplayManager.DisplayListener {
                     Log.i(TAG, "Running command: $command")
                     Adb.runShell(manager, command)
                     
-                    // After setting mode, launch our DesktopLauncherActivity on that display
-                    launchDesktopLauncher(displayId)
+                    // Launch Samsung DeX native launcher on the HDMI display
+                    val startDexCommand = "am start -n com.sec.android.app.launcher/com.honeyspace.dexservice.SecondaryLauncher --display $displayId"
+                    Log.i(TAG, "Running command: $startDexCommand")
+                    Adb.runShell(manager, startDexCommand)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error configuring display $displayId", e)
