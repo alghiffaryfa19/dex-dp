@@ -71,6 +71,8 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+        layout.addView(btnAdbPair)
+
         val displayManager = getSystemService(android.content.Context.DISPLAY_SERVICE) as android.hardware.display.DisplayManager
         val displayInputLayout = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.HORIZONTAL
