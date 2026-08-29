@@ -71,17 +71,47 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        layout.addView(btnAdbPair)
+        val displayManager = getSystemService(Context.DISPLAY_SERVICE) as android.hardware.display.DisplayManager
+        val displayInputLayout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 32, 0, 32)
+        }
+
+        val displayInput = android.widget.EditText(this).apply {
+            hint = "Display ID (e.g., 0, 1, 2)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            layoutParams = android.widget.LinearLayout.LayoutParams(0, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        displayInputLayout.addView(displayInput)
+
+        val btnGetDisplays = Button(this).apply {
+            text = "List Displays"
+            setOnClickListener {
+                val displays = displayManager.displays
+                val displayInfo = displays.joinToString("\n") { "ID: ${it.displayId} - ${it.name}" }
+                statusText.text = "Available Displays:\n$displayInfo"
+            }
+        }
+        displayInputLayout.addView(btnGetDisplays)
+        layout.addView(displayInputLayout)
 
         val btnDeXPrimary = Button(this).apply {
-            text = "Test DeX on Primary Screen"
+            text = "Test DeX on Selected Display"
             setOnClickListener {
+                val displayIdStr = displayInput.text.toString()
+                if (displayIdStr.isEmpty()) {
+                    statusText.text = "Please enter a Display ID."
+                    return@setOnClickListener
+                }
+                val displayId = displayIdStr.toIntOrNull() ?: 0
+
                 scope.launch {
                     try {
                         val connected = kotlinx.coroutines.withContext(Dispatchers.IO) {
                             val manager = Adb.createManager(this@MainActivity)
                             if (manager.autoConnect(this@MainActivity, 5_000)) {
-                                val startDexCommand = "am start -n com.sec.android.app.launcher/com.honeyspace.dexservice.SecondaryLauncher --display 0"
+                                val startDexCommand = "am start -n com.sec.android.app.launcher/com.honeyspace.dexservice.SecondaryLauncher --display $displayId"
                                 Adb.runShell(manager, startDexCommand)
                                 true
                             } else {
@@ -90,7 +120,7 @@ class MainActivity : AppCompatActivity() {
                         }
                         
                         if (connected) {
-                            statusText.text = "DeX command sent to Primary Screen!"
+                            statusText.text = "DeX command sent to Display $displayId!"
                         } else {
                             statusText.text = "Please connect ADB first."
                         }
