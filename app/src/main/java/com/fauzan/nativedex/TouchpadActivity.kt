@@ -74,7 +74,7 @@ class TouchpadActivity : AppCompatActivity() {
 
         layout.setOnTouchListener { view, event ->
             // Forward events to scrcpy controller
-            session?.controller?.handleTouch(event, view.width, view.height, extWidth, extHeight)
+            session?.controller?.forwardMotionEvent(event, view.width, view.height, extWidth, extHeight)
             true
         }
 

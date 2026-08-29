@@ -61,7 +61,8 @@ class ScrcpySession(
     private var shellStream: AdbStream? = null
     private var controlStream: AdbStream? = null
 
-    private var controller: Controller? = null
+    var controller: Controller? = null
+        private set
 
     /** The Android display id of the virtual display, for `scrcpy --display-id=N`. */
     @Volatile
