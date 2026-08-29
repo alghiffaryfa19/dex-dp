@@ -76,8 +76,8 @@ class DisplayMonitorService : Service(), DisplayManager.DisplayListener {
             if (manager != null && manager.isConnected) {
                 // Revert the DeX hack setting
                 try {
-                    Adb.runShell(manager, "settings delete global navigation_current_color")
-                    Log.i(TAG, "Reverted navigation_current_color setting")
+                    Adb.runShell(manager, "settings delete global navigationbar_current_color")
+                    Log.i(TAG, "Reverted navigationbar_current_color setting")
                 } catch (e: Exception) {
                     Log.e(TAG, "Error reverting setting", e)
                 }
@@ -104,7 +104,7 @@ class DisplayMonitorService : Service(), DisplayManager.DisplayListener {
                     Log.i(TAG, "Running command: $command")
                     Adb.runShell(manager, command)
                     
-                    val dexHackCommand = "settings put global navigation_current_color -16777216"
+                    val dexHackCommand = "settings put global navigationbar_current_color -16777216"
                     Log.i(TAG, "Running hack command: $dexHackCommand")
                     Adb.runShell(manager, dexHackCommand)
 
