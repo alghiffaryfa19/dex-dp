@@ -72,14 +72,16 @@ class DisplayMonitorService : Service(), DisplayManager.DisplayListener {
     override fun onDisplayRemoved(displayId: Int) {
         Log.i(TAG, "Display removed: $displayId")
         if (displayId != Display.DEFAULT_DISPLAY) {
-            val manager = AdbConnectionManager.getInstance(this).getManager()
-            if (manager != null && manager.isConnected) {
-                // Revert the DeX hack setting
-                try {
-                    Adb.runShell(manager, "settings delete global navigationbar_current_color")
-                    Log.i(TAG, "Reverted navigationbar_current_color setting")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error reverting setting", e)
+            serviceScope.launch {
+                val manager = adbManager
+                if (manager != null) {
+                    // Revert the DeX hack setting
+                    try {
+                        Adb.runShell(manager, "settings delete global navigationbar_current_color")
+                        Log.i(TAG, "Reverted navigationbar_current_color setting")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error reverting setting", e)
+                    }
                 }
             }
         }
