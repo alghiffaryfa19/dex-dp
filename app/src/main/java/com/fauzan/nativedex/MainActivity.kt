@@ -49,6 +49,7 @@ class MainActivity : AppCompatActivity() {
         val btnAdbPair = Button(this).apply {
             text = "Pair Wireless Debugging (ADB)"
             setOnClickListener {
+                if (!checkPermissions()) return@setOnClickListener
                 scope.launch {
                     try {
                         val connected = kotlinx.coroutines.withContext(Dispatchers.IO) {
@@ -63,7 +64,9 @@ class MainActivity : AppCompatActivity() {
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
-                        statusText.text = "Error connecting ADB: ${e.message ?: e.javaClass.simpleName}"
+                        // libadb throws when pairing is required
+                        startService(Intent(this@MainActivity, PairingInputService::class.java))
+                        statusText.text = "Follow pairing instructions in notification"
                     }
                 }
             }
