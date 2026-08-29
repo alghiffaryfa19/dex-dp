@@ -73,6 +73,36 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(btnAdbPair)
 
+        val btnDeXPrimary = Button(this).apply {
+            text = "Test DeX on Primary Screen"
+            setOnClickListener {
+                scope.launch {
+                    try {
+                        val connected = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                            val manager = Adb.createManager(this@MainActivity)
+                            if (manager.autoConnect(this@MainActivity, 5_000)) {
+                                val startDexCommand = "am start -n com.sec.android.app.launcher/com.honeyspace.dexservice.SecondaryLauncher --display 0"
+                                Adb.runShell(manager, startDexCommand)
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                        
+                        if (connected) {
+                            statusText.text = "DeX command sent to Primary Screen!"
+                        } else {
+                            statusText.text = "Please connect ADB first."
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        statusText.text = "Failed: ${e.message}"
+                    }
+                }
+            }
+        }
+        layout.addView(btnDeXPrimary)
+
         setContentView(layout)
     }
     
