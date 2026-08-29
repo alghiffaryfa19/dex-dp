@@ -72,16 +72,14 @@ class DisplayMonitorService : Service(), DisplayManager.DisplayListener {
     override fun onDisplayRemoved(displayId: Int) {
         Log.i(TAG, "Display removed: $displayId")
         if (displayId != Display.DEFAULT_DISPLAY) {
-            serviceScope.launch {
-                val manager = adbManager
-                if (manager != null) {
-                    // Revert the DeX hack setting
-                    try {
-                        Adb.runShell(manager, "settings delete global navigationbar_current_color")
-                        Log.i(TAG, "Reverted navigationbar_current_color setting")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error reverting setting", e)
-                    }
+            val manager = AdbConnectionManager.getInstance(this).getManager()
+            if (manager != null && manager.isConnected) {
+                // Revert the DeX hack setting
+                try {
+                    Adb.runShell(manager, "settings delete global navigationbar_current_color")
+                    Log.i(TAG, "Reverted navigationbar_current_color setting")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error reverting setting", e)
                 }
             }
         }
@@ -106,14 +104,14 @@ class DisplayMonitorService : Service(), DisplayManager.DisplayListener {
                     Log.i(TAG, "Running command: $command")
                     Adb.runShell(manager, command)
                     
-                    val dexHackCommand = "settings put global navigationbar_current_color 0xFF000000"
+                    val dexHackCommand = "settings put global navigationbar_current_color -16777216"
                     Log.i(TAG, "Running hack command: $dexHackCommand")
                     Adb.runShell(manager, dexHackCommand)
 
                     // Launch Samsung DeX native launcher on the HDMI display
-                    // val startDexCommand = "am start -n com.sec.android.app.launcher/com.honeyspace.dexservice.SecondaryLauncher --display $displayId"
-                    // Log.i(TAG, "Running command: $startDexCommand")
-                    // Adb.runShell(manager, startDexCommand)
+                    //val startDexCommand = "am start -n com.sec.android.app.launcher/com.honeyspace.dexservice.SecondaryLauncher --display $displayId"
+                    //Log.i(TAG, "Running command: $startDexCommand")
+                    //Adb.runShell(manager, startDexCommand)
 
                     // Launch TouchpadActivity on the primary display
                     val touchpadIntent = Intent(this@DisplayMonitorService, TouchpadActivity::class.java).apply {
