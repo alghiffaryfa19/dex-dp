@@ -51,15 +51,19 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener {
                 scope.launch {
                     try {
-                        val manager = Adb.createManager(this@MainActivity)
-                        if (manager.autoConnect(this@MainActivity, 5_000)) {
+                        val connected = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                            val manager = Adb.createManager(this@MainActivity)
+                            manager.autoConnect(this@MainActivity, 5_000)
+                        }
+                        if (connected) {
                             statusText.text = "ADB already connected!"
                         } else {
                             startService(Intent(this@MainActivity, PairingInputService::class.java))
                             statusText.text = "Follow pairing instructions in notification"
                         }
                     } catch (e: Exception) {
-                        statusText.text = "Error connecting ADB: ${e.message}"
+                        e.printStackTrace()
+                        statusText.text = "Error connecting ADB: ${e.message ?: e.javaClass.simpleName}"
                     }
                 }
             }
