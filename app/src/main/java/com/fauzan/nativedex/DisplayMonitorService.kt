@@ -106,14 +106,14 @@ class DisplayMonitorService : Service(), DisplayManager.DisplayListener {
                     Log.i(TAG, "Running command: $command")
                     Adb.runShell(manager, command)
                     
-                    val dexHackCommand = "settings put global navigationbar_current_color -16777216"
+                    val dexHackCommand = "settings put global navigationbar_current_color 0xFF000000"
                     Log.i(TAG, "Running hack command: $dexHackCommand")
                     Adb.runShell(manager, dexHackCommand)
 
                     // Launch Samsung DeX native launcher on the HDMI display
-                    val startDexCommand = "am start -n com.sec.android.app.launcher/com.honeyspace.dexservice.SecondaryLauncher --display $displayId"
-                    Log.i(TAG, "Running command: $startDexCommand")
-                    Adb.runShell(manager, startDexCommand)
+                    // val startDexCommand = "am start -n com.sec.android.app.launcher/com.honeyspace.dexservice.SecondaryLauncher --display $displayId"
+                    // Log.i(TAG, "Running command: $startDexCommand")
+                    // Adb.runShell(manager, startDexCommand)
 
                     // Launch TouchpadActivity on the primary display
                     val touchpadIntent = Intent(this@DisplayMonitorService, TouchpadActivity::class.java).apply {
