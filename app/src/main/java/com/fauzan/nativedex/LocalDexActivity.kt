@@ -146,17 +146,31 @@ class LocalDexActivity : AppCompatActivity() {
 
     private fun launchDeX(displayId: Int) {
         try {
-            val dexIntent = Intent(Intent.ACTION_MAIN).apply {
-                addCategory(Intent.CATEGORY_HOME)
+            val primaryIntent = Intent().apply {
+                setClassName("com.sec.android.app.launcher", "com.honeyspace.dexservice.SecondaryLauncher")
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
             }
-            debugText?.append("Launching: ACTION_MAIN (Home)\n")
-            val options = ActivityOptions.makeBasic()
-            options.launchDisplayId = displayId
-            startActivity(dexIntent, options.toBundle())
+            
+            // Check if this specific Samsung Secondary Launcher exists
+            if (primaryIntent.resolveActivity(packageManager) != null) {
+                debugText?.append("Launching: com.honeyspace.dexservice.SecondaryLauncher\n")
+                val options = ActivityOptions.makeBasic()
+                options.launchDisplayId = displayId
+                startActivity(primaryIntent, options.toBundle())
+            } else {
+                // Fallback to standard generic Secondary Home
+                debugText?.append("Specific launcher not found. Fallback: CATEGORY_SECONDARY_HOME\n")
+                val fallbackIntent = Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_SECONDARY_HOME)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+                }
+                val options = ActivityOptions.makeBasic()
+                options.launchDisplayId = displayId
+                startActivity(fallbackIntent, options.toBundle())
+            }
         } catch (e: Exception) {
             e.printStackTrace()
-            debugText?.append("Launch Failed: ${e.message}\n")
+            debugText?.append("Launch Error: ${e.message}\n")
             Toast.makeText(this, "Failed to launch DeX: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
