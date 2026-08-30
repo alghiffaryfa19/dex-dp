@@ -116,6 +116,7 @@ class MainActivity : AppCompatActivity() {
             button.text = "Launch Samsung DeX (HDMI Required)"
             button.setTextColor(android.graphics.Color.GRAY)
         }
+    }
     
     private fun checkPermissions(): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
