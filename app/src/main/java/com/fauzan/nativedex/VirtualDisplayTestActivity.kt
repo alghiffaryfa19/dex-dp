@@ -11,6 +11,7 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.widget.FrameLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
 class VirtualDisplayTestActivity : AppCompatActivity() {
@@ -62,12 +63,20 @@ class VirtualDisplayTestActivity : AppCompatActivity() {
         )
 
         virtualDisplay?.let {
-            val intent = Intent(this, VirtualDesktopActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+            try {
+                val intent = Intent().apply {
+                    setClassName("com.sec.android.app.launcher", "com.honeyspace.dexservice.SecondaryLauncher")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+                }
+                val options = ActivityOptions.makeBasic()
+                options.setLaunchDisplayId(it.display.displayId)
+                startActivity(intent, options.toBundle())
+            } catch (e: Exception) {
+                e.printStackTrace()
+                runOnUiThread {
+                    Toast.makeText(this@VirtualDisplayTestActivity, "Failed to launch DeX: ${e.message}", Toast.LENGTH_LONG).show()
+                }
             }
-            val options = ActivityOptions.makeBasic()
-            options.setLaunchDisplayId(it.display.displayId)
-            startActivity(intent, options.toBundle())
         }
     }
 }
