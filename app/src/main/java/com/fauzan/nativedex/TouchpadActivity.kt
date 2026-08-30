@@ -44,7 +44,7 @@ class TouchpadActivity : AppCompatActivity() {
             setBackgroundColor(android.graphics.Color.BLACK)
         }
         val statusText = TextView(this).apply {
-            text = "NativeDex Touchpad Active\nSwipe to move cursor, tap to click."
+            text = "NativeDex Touchpad Active\nSwipe to move cursor, tap to click.\n(Physical mouse captured automatically)"
             setTextColor(android.graphics.Color.DKGRAY)
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT,
@@ -96,5 +96,33 @@ class TouchpadActivity : AppCompatActivity() {
                 else -> false
             }
         }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            window.decorView.requestPointerCapture()
+        }
+    }
+
+    override fun onCapturedPointerEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_MOVE -> {
+                val dx = event.x * sensitivity
+                val dy = event.y * sensitivity
+                NativeDexAccessibilityService.instance?.moveCursor(dx, dy)
+                return true
+            }
+            MotionEvent.ACTION_BUTTON_PRESS, MotionEvent.ACTION_DOWN -> {
+                val accService = NativeDexAccessibilityService.instance
+                if (accService != null) {
+                    val (cX, cY) = accService.getCursorPosition()
+                    val targetDisplayId = accService.activeDisplayId
+                    accService.injectClick(cX, cY, targetDisplayId)
+                }
+                return true
+            }
+        }
+        return super.onCapturedPointerEvent(event)
     }
 }
