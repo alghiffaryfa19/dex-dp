@@ -18,8 +18,6 @@ import android.app.ActivityOptions
 
 class MainActivity : AppCompatActivity() {
 
-    private val scope = CoroutineScope(Dispatchers.Main + Job())
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
