@@ -1,10 +1,7 @@
 package com.fauzan.nativedex
 
 import android.Manifest
-import android.companion.AssociationRequest
-import android.companion.CompanionDeviceManager
 import android.content.Intent
-import android.content.IntentSender
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -38,36 +35,13 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(statusText)
 
-        val btnAssociate = Button(this).apply {
-            text = "Request VDM Permission (Companion)"
+        val btnTestVirtualDisplay = Button(this).apply {
+            text = "Test Virtual Display (Local)"
             setOnClickListener {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    val cdm = getSystemService(CompanionDeviceManager::class.java)
-                    val request = AssociationRequest.Builder()
-                        .setDeviceProfile(AssociationRequest.DEVICE_PROFILE_APP_STREAMING)
-                        .build()
-
-                    val callback = object : CompanionDeviceManager.Callback() {
-                        override fun onAssociationPending(intentSender: IntentSender) {
-                            try {
-                                startIntentSenderForResult(intentSender, REQUEST_CODE_ASSOCIATE, null, 0, 0, 0)
-                            } catch (e: IntentSender.SendIntentException) {
-                                e.printStackTrace()
-                            }
-                        }
-                        override fun onFailure(error: CharSequence?) {
-                            runOnUiThread {
-                                statusText.text = "VDM Association failed: $error"
-                            }
-                        }
-                    }
-                    cdm.associate(request, ContextCompat.getMainExecutor(this@MainActivity), callback)
-                } else {
-                    statusText.text = "VDM requires Android 13+"
-                }
+                startActivity(Intent(this@MainActivity, VirtualDisplayTestActivity::class.java))
             }
         }
-        layout.addView(btnAssociate)
+        layout.addView(btnTestVirtualDisplay)
 
         val btnStart = Button(this).apply {
             text = "Start NativeDex Monitor"
@@ -154,25 +128,7 @@ class MainActivity : AppCompatActivity() {
         ContextCompat.startForegroundService(this, intent)
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQUEST_CODE_ASSOCIATE && resultCode == RESULT_OK) {
-            val associationInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                data?.getParcelableExtra(CompanionDeviceManager.EXTRA_ASSOCIATION, android.companion.AssociationInfo::class.java)
-            } else null
-            
-            if (associationInfo != null) {
-                val intent = Intent(this, VdmService::class.java).apply {
-                    action = VdmService.ACTION_START_VIRTUAL_DEVICE
-                    putExtra(VdmService.EXTRA_ASSOCIATION_ID, associationInfo.id)
-                }
-                startService(intent)
-            }
-        }
-    }
-
     companion object {
         const val EXTRA_FROM_PAIRING = "com.fauzan.nativedex.FROM_PAIRING"
-        private const val REQUEST_CODE_ASSOCIATE = 1001
     }
 }

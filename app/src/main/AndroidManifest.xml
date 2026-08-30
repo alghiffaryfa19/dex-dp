@@ -6,10 +6,6 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.REQUEST_COMPANION_PROFILE_APP_STREAMING" />
-    <uses-permission android:name="android.permission.REQUEST_COMPANION_RUN_IN_BACKGROUND" />
-    <uses-permission android:name="android.permission.REQUEST_OBSERVE_COMPANION_DEVICE_PRESENCE" />
-    <uses-permission android:name="android.permission.CREATE_VIRTUAL_DEVICE" />
     
     <uses-permission
         android:name="android.permission.WRITE_SECURE_SETTINGS"
@@ -48,9 +44,15 @@
             android:name=".DisplayMonitorService"
             android:exported="false" />
 
-        <service
-            android:name=".VdmService"
-            android:exported="false" />
+        <activity
+            android:name=".VirtualDisplayTestActivity"
+            android:exported="true" />
+            
+        <activity
+            android:name=".VirtualDesktopActivity"
+            android:exported="true"
+            android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize" />
 
         <service
             android:name=".PairingInputService"
