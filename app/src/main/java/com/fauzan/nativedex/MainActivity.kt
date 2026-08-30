@@ -3,8 +3,10 @@ package com.fauzan.nativedex
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -53,6 +55,29 @@ class MainActivity : AppCompatActivity() {
             }
         }
         layout.addView(btnStart)
+        
+        val btnPermissions = Button(this).apply {
+            text = "Enable Cursor Permissions"
+            setOnClickListener {
+                if (!Settings.canDrawOverlays(this@MainActivity)) {
+                    startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+                } else {
+                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                }
+                statusText.text = "Please enable 'NativeDex Injector' in Accessibility, and 'Draw over other apps'."
+            }
+        }
+        layout.addView(btnPermissions)
+
+        val btnStartCursor = Button(this).apply {
+            text = "Start Cursor & Touchpad"
+            setOnClickListener {
+                startService(Intent(this@MainActivity, SoftwareCursorService::class.java))
+                startActivity(Intent(this@MainActivity, TouchpadActivity::class.java))
+            }
+        }
+        layout.addView(btnStartCursor)
+
         
         val btnAdbPair = Button(this).apply {
             text = "Pair Wireless Debugging (ADB)"

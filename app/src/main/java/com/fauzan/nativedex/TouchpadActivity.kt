@@ -17,7 +17,16 @@ import androidx.appcompat.app.AppCompatActivity
 
 class TouchpadActivity : AppCompatActivity() {
 
-    private var displayId = 0
+    private var lastX = 0f
+    private var lastY = 0f
+    private var downTime = 0L
+    private var isMoved = false
+
+    private val clickThreshold = 10f // pixels
+    private val clickTimeThreshold = 300L // ms
+    private val sensitivity = 1.5f
+
+    @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -35,8 +44,8 @@ class TouchpadActivity : AppCompatActivity() {
             setBackgroundColor(android.graphics.Color.BLACK)
         }
         val statusText = TextView(this).apply {
-            text = "Touchpad Activity (Placeholder)"
-            setTextColor(android.graphics.Color.GRAY)
+            text = "NativeDex Touchpad Active\nSwipe to move cursor, tap to click."
+            setTextColor(android.graphics.Color.DKGRAY)
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT
@@ -46,5 +55,47 @@ class TouchpadActivity : AppCompatActivity() {
         }
         layout.addView(statusText)
         setContentView(layout)
+
+        layout.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    lastX = event.x
+                    lastY = event.y
+                    downTime = System.currentTimeMillis()
+                    isMoved = false
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = (event.x - lastX) * sensitivity
+                    val dy = (event.y - lastY) * sensitivity
+                    
+                    if (Math.abs(dx) > clickThreshold || Math.abs(dy) > clickThreshold) {
+                        isMoved = true
+                    }
+                    
+                    SoftwareCursorService.instance?.moveCursor(dx, dy)
+                    
+                    lastX = event.x
+                    lastY = event.y
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    val upTime = System.currentTimeMillis()
+                    if (!isMoved && (upTime - downTime) < clickTimeThreshold) {
+                        // It's a click! Get current cursor position and inject
+                        val cursorService = SoftwareCursorService.instance
+                        val accService = NativeDexAccessibilityService.instance
+                        
+                        if (cursorService != null && accService != null) {
+                            val (cX, cY) = cursorService.getCursorPosition()
+                            val targetDisplayId = cursorService.activeDisplayId
+                            accService.injectClick(cX, cY, targetDisplayId)
+                        }
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
     }
 }

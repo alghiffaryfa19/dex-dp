@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">NativeDex</string>
+    <string name="accessibility_service_description">NativeDex Injector Service for External Displays</string>
 </resources>
