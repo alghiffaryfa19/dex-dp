@@ -30,13 +30,16 @@ class DexShizukuService : INativeDexService.Stub() {
             if (android.os.Looper.myLooper() == null) {
                 android.os.Looper.prepare()
             }
-            val context = getSystemContext()
-            val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+            val sysContext = getSystemContext()
+            // The shell UID (2000) must use the "com.android.shell" package name
+            val shellContext = sysContext.createPackageContext("com.android.shell", Context.CONTEXT_IGNORE_SECURITY)
+            val displayManager = shellContext.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
             
             // VIRTUAL_DISPLAY_FLAG_TRUSTED is 1 << 10 (1024)
             val VIRTUAL_DISPLAY_FLAG_TRUSTED = 1 shl 10
             val flags = DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC or 
-                        DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION
+                        DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION or 
+                        VIRTUAL_DISPLAY_FLAG_TRUSTED
 
             virtualDisplay?.release()
             virtualDisplay = displayManager.createVirtualDisplay(
