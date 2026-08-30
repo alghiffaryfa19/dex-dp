@@ -5,6 +5,12 @@ NativeDex is a utility that unlocks Samsung DeX **natively** on your device, wit
 
 Currently tested on a **Galaxy Z Flip 5 running One UI 8.0 (Android 16)**.
 
+<div align="center">
+  <img src="img/photo_1.jpeg" width="30%" />
+  <img src="img/photo_2.jpeg" width="30%" />
+  <img src="img/photo_3.jpeg" width="30%" />
+</div>
+
 ## Requirements
 1. A secondary display/monitor with a USB Type-C to HDMI hub.
 2. A Galaxy Z Flip 5 running One UI 8.0 or above. *(Feel free to test on other Samsung devices with different One UI versions!)*
