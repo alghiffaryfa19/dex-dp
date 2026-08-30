@@ -87,15 +87,10 @@ class DisplayMonitorService : Service(), DisplayManager.DisplayListener {
             try {
                 val manager = adbManager
                 if (manager != null) {
-                    // 5 is WINDOWING_MODE_FREEFORM
-                    val command = "wm set-display-windowing-mode -d $displayId 5"
-                    Log.i(TAG, "Running command: $command")
-                    Adb.runShell(manager, command)
-                    
-                    // Launch our own dummy desktop activity on the HDMI display
-                    val startDummyCommand = "am start -n com.fauzan.nativedex/com.fauzan.nativedex.DesktopLauncherActivity --display $displayId"
-                    Log.i(TAG, "Running command: $startDummyCommand")
-                    Adb.runShell(manager, startDummyCommand)
+                    // Launch Samsung DeX on the HDMI display
+                    val startDexCommand = "am start -n com.sec.android.app.launcher/com.honeyspace.dexservice.SecondaryLauncher -f 0x18000000 --display $displayId"
+                    Log.i(TAG, "Running command: $startDexCommand")
+                    Adb.runShell(manager, startDexCommand)
 
                     // Launch TouchpadActivity on the primary display
                     val touchpadIntent = Intent(this@DisplayMonitorService, TouchpadActivity::class.java).apply {
