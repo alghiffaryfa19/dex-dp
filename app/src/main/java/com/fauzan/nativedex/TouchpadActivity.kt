@@ -7,13 +7,11 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.graphics.Color
 import androidx.appcompat.app.AppCompatActivity
 import android.view.Gravity
 import android.view.ViewGroup
-
 import android.hardware.display.DisplayManager
 import android.content.Context
 import android.view.Display
@@ -22,10 +20,18 @@ class TouchpadActivity : AppCompatActivity() {
 
     private var lastX = 0f
     private var lastY = 0f
+    
+    // For 2-finger scrolling
+    private var scrollLastX = 0f
+    private var scrollLastY = 0f
+    
+    // For physical mouse generic hover
     private var lastHoverX = 0f
     private var lastHoverY = 0f
+    
     private var downTime = 0L
     private var isMoved = false
+    private var maxPointersDown = 1
 
     private val clickThreshold = 10f // pixels
     private val clickTimeThreshold = 300L // ms
@@ -55,165 +61,102 @@ class TouchpadActivity : AppCompatActivity() {
         )
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         
-        // Root Layout
-        val mainLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
+        val layout = FrameLayout(this).apply {
             layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-            setBackgroundColor(Color.BLACK)
+            setBackgroundColor(Color.parseColor("#050505"))
         }
 
-        // Left Column (Touchpad + Buttons)
-        val leftCol = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 8.5f)
-        }
-
-        // Touchpad Area
-        val touchArea = FrameLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 8f)
-            setBackgroundColor(Color.parseColor("#111111"))
-        }
         val statusText = TextView(this).apply {
-            text = "MAIN TOUCHPAD\nSwipe to move, tap to click\n(Physical mouse supported)"
+            text = "MULTI-TOUCHPAD\n• 1 Finger: Move & Tap to Left Click\n• 2 Fingers: Swipe to Scroll & Tap to Right Click\n(Physical Mouse Supported)"
             setTextColor(Color.parseColor("#444444"))
             gravity = Gravity.CENTER
             layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 gravity = Gravity.CENTER
             }
         }
-        touchArea.addView(statusText)
+        layout.addView(statusText)
+        setContentView(layout)
 
-        // Buttons Area
-        val buttonsArea = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 2f)
-        }
-        val btnLeftClick = FrameLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
-            setBackgroundColor(Color.parseColor("#222222"))
-            addView(TextView(this@TouchpadActivity).apply {
-                text = "LEFT CLICK"
-                setTextColor(Color.parseColor("#555555"))
-                gravity = Gravity.CENTER
-                layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER }
-            })
-        }
-        val btnRightClick = FrameLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
-            setBackgroundColor(Color.parseColor("#333333"))
-            addView(TextView(this@TouchpadActivity).apply {
-                text = "RIGHT CLICK"
-                setTextColor(Color.parseColor("#666666"))
-                gravity = Gravity.CENTER
-                layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER }
-            })
-        }
-        buttonsArea.addView(btnLeftClick)
-        buttonsArea.addView(btnRightClick)
-
-        leftCol.addView(touchArea)
-        leftCol.addView(buttonsArea)
-
-        // Right Column (Scroll Area)
-        val scrollArea = FrameLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1.5f)
-            setBackgroundColor(Color.parseColor("#444444"))
-            addView(TextView(this@TouchpadActivity).apply {
-                text = "S\nC\nR\nO\nL\nL"
-                setTextColor(Color.parseColor("#888888"))
-                gravity = Gravity.CENTER
-                layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER }
-            })
-        }
-
-        mainLayout.addView(leftCol)
-        mainLayout.addView(scrollArea)
-        setContentView(mainLayout)
-
-        // Touch Listeners
-        touchArea.setOnTouchListener { _, event ->
-            handleCursorMoveAndClick(event)
-        }
-
-        btnLeftClick.setOnClickListener {
-            val accService = NativeDexAccessibilityService.instance
-            if (accService != null) {
-                val (cX, cY) = accService.getCursorPosition()
-                accService.injectClick(cX, cY, accService.activeDisplayId)
-            }
-        }
-
-        btnRightClick.setOnClickListener {
-            val accService = NativeDexAccessibilityService.instance
-            if (accService != null) {
-                val (cX, cY) = accService.getCursorPosition()
-                accService.injectLongClick(cX, cY, accService.activeDisplayId)
-            }
-        }
-
-        var scrollLastY = 0f
-        scrollArea.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    scrollLastY = event.y
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val dy = event.y - scrollLastY
-                    if (Math.abs(dy) > 30f) {
-                        val accService = NativeDexAccessibilityService.instance
-                        if (accService != null) {
-                            val (cX, cY) = accService.getCursorPosition()
-                            // If user swipes UP (dy < 0), they want content to go up (scroll down).
-                            // A physical swipe down on the screen moves content down (scrolls up).
-                            val swipeDist = 150f * Math.signum(dy)
-                            accService.injectSwipe(cX, cY, cX, cY + swipeDist, accService.activeDisplayId)
-                        }
-                        scrollLastY = event.y
-                    }
-                    true
-                }
-                else -> true
-            }
+        layout.setOnTouchListener { _, event ->
+            handleMultiTouch(event)
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            mainLayout.setOnCapturedPointerListener { _, event ->
+            layout.setOnCapturedPointerListener { _, event ->
                 handleCapturedPointer(event)
             }
         }
     }
     
-    private fun handleCursorMoveAndClick(event: MotionEvent): Boolean {
-        when (event.action) {
+    private fun handleMultiTouch(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                // First finger down
                 lastX = event.x
                 lastY = event.y
                 downTime = System.currentTimeMillis()
                 isMoved = false
+                maxPointersDown = 1
+                return true
+            }
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                // Second finger down
+                maxPointersDown = Math.max(maxPointersDown, event.pointerCount)
+                if (event.pointerCount == 2) {
+                    scrollLastX = event.getX(0)
+                    scrollLastY = event.getY(0)
+                }
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
-                val dx = (event.x - lastX) * sensitivity
-                val dy = (event.y - lastY) * sensitivity
-                
-                if (Math.abs(dx) > clickThreshold || Math.abs(dy) > clickThreshold) {
-                    isMoved = true
+                if (event.pointerCount == 1) {
+                    val dx = (event.x - lastX) * sensitivity
+                    val dy = (event.y - lastY) * sensitivity
+                    
+                    if (Math.abs(dx) > clickThreshold || Math.abs(dy) > clickThreshold) {
+                        isMoved = true
+                    }
+                    
+                    NativeDexAccessibilityService.instance?.moveCursor(dx, dy)
+                    
+                    lastX = event.x
+                    lastY = event.y
+                } else if (event.pointerCount == 2) {
+                    val dx = event.getX(0) - scrollLastX
+                    val dy = event.getY(0) - scrollLastY
+                    
+                    if (Math.abs(dx) > 20f || Math.abs(dy) > 20f) {
+                        isMoved = true
+                        val accService = NativeDexAccessibilityService.instance
+                        if (accService != null) {
+                            val (cX, cY) = accService.getCursorPosition()
+                            
+                            val swipeDistX = 150f * Math.signum(dx)
+                            val swipeDistY = 150f * Math.signum(dy)
+                            
+                            // Send a swipe on the screen
+                            accService.injectSwipe(cX, cY, cX + swipeDistX, cY + swipeDistY, accService.activeDisplayId)
+                        }
+                        scrollLastX = event.getX(0)
+                        scrollLastY = event.getY(0)
+                    }
                 }
-                
-                NativeDexAccessibilityService.instance?.moveCursor(dx, dy)
-                
-                lastX = event.x
-                lastY = event.y
                 return true
             }
-            MotionEvent.ACTION_UP -> {
-                val upTime = System.currentTimeMillis()
-                if (!isMoved && (upTime - downTime) < clickTimeThreshold) {
-                    val accService = NativeDexAccessibilityService.instance
-                    if (accService != null) {
-                        val (cX, cY) = accService.getCursorPosition()
-                        accService.injectClick(cX, cY, accService.activeDisplayId)
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
+                // Wait for all fingers to be lifted before triggering clicks
+                if (event.actionMasked == MotionEvent.ACTION_UP) {
+                    val upTime = System.currentTimeMillis()
+                    if (!isMoved && (upTime - downTime) < clickTimeThreshold) {
+                        val accService = NativeDexAccessibilityService.instance
+                        if (accService != null) {
+                            val (cX, cY) = accService.getCursorPosition()
+                            if (maxPointersDown == 1) {
+                                accService.injectClick(cX, cY, accService.activeDisplayId)
+                            } else if (maxPointersDown >= 2) {
+                                accService.injectLongClick(cX, cY, accService.activeDisplayId)
+                            }
+                        }
                     }
                 }
                 return true
@@ -245,12 +188,18 @@ class TouchpadActivity : AppCompatActivity() {
             }
             MotionEvent.ACTION_SCROLL -> {
                 val vScroll = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
-                if (vScroll != 0f) {
-                    val accService = NativeDexAccessibilityService.instance
-                    if (accService != null) {
-                        val (cX, cY) = accService.getCursorPosition()
-                        val swipeDist = 150f * Math.signum(vScroll)
-                        accService.injectSwipe(cX, cY, cX, cY + swipeDist, accService.activeDisplayId)
+                val hScroll = event.getAxisValue(MotionEvent.AXIS_HSCROLL)
+                
+                val accService = NativeDexAccessibilityService.instance
+                if (accService != null) {
+                    val (cX, cY) = accService.getCursorPosition()
+                    
+                    if (vScroll != 0f) {
+                        val swipeDistY = 150f * Math.signum(vScroll)
+                        accService.injectSwipe(cX, cY, cX, cY + swipeDistY, accService.activeDisplayId)
+                    } else if (hScroll != 0f) {
+                        val swipeDistX = 150f * Math.signum(hScroll)
+                        accService.injectSwipe(cX, cY, cX + swipeDistX, cY, accService.activeDisplayId)
                     }
                 }
                 return true
@@ -276,12 +225,18 @@ class TouchpadActivity : AppCompatActivity() {
             }
             MotionEvent.ACTION_SCROLL -> {
                 val vScroll = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
-                if (vScroll != 0f) {
-                    val accService = NativeDexAccessibilityService.instance
-                    if (accService != null) {
-                        val (cX, cY) = accService.getCursorPosition()
-                        val swipeDist = 150f * Math.signum(vScroll)
-                        accService.injectSwipe(cX, cY, cX, cY + swipeDist, accService.activeDisplayId)
+                val hScroll = event.getAxisValue(MotionEvent.AXIS_HSCROLL)
+                
+                val accService = NativeDexAccessibilityService.instance
+                if (accService != null) {
+                    val (cX, cY) = accService.getCursorPosition()
+                    
+                    if (vScroll != 0f) {
+                        val swipeDistY = 150f * Math.signum(vScroll)
+                        accService.injectSwipe(cX, cY, cX, cY + swipeDistY, accService.activeDisplayId)
+                    } else if (hScroll != 0f) {
+                        val swipeDistX = 150f * Math.signum(hScroll)
+                        accService.injectSwipe(cX, cY, cX + swipeDistX, cY, accService.activeDisplayId)
                     }
                 }
                 return true
