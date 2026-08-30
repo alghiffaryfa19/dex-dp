@@ -72,6 +72,35 @@ class MainActivity : AppCompatActivity() {
             }
         }
         layout.addView(btnAdbPair)
+        
+        val btnLaunchDeXBuiltIn = Button(this).apply {
+            text = "Launch DeX on Built-in Display"
+            setOnClickListener {
+                if (!checkPermissions()) return@setOnClickListener
+                scope.launch {
+                    try {
+                        kotlinx.coroutines.withContext(Dispatchers.IO) {
+                            val manager = Adb.createManager(this@MainActivity)
+                            if (manager.autoConnect(this@MainActivity, 5_000)) {
+                                val cmd = "am start -n com.sec.android.app.launcher/com.honeyspace.dexservice.SecondaryLauncher --display 0"
+                                Adb.runShell(manager, cmd)
+                                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                                    statusText.text = "DeX command sent to display 0"
+                                }
+                            } else {
+                                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                                    statusText.text = "ADB not connected, please pair first."
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        statusText.text = "Failed: ${e.message}"
+                    }
+                }
+            }
+        }
+        layout.addView(btnLaunchDeXBuiltIn)
 
         setContentView(layout)
     }
