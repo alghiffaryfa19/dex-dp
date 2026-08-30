@@ -13,10 +13,16 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class VirtualDisplayTestActivity : AppCompatActivity() {
 
     private var virtualDisplay: VirtualDisplay? = null
+    private val scope = CoroutineScope(Dispatchers.Main + Job())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -62,19 +68,30 @@ class VirtualDisplayTestActivity : AppCompatActivity() {
             flags
         )
 
-        virtualDisplay?.let {
-            try {
-                val intent = Intent().apply {
-                    setClassName("com.sec.android.app.launcher", "com.honeyspace.dexservice.SecondaryLauncher")
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
-                }
-                val options = ActivityOptions.makeBasic()
-                options.setLaunchDisplayId(it.display.displayId)
-                startActivity(intent, options.toBundle())
-            } catch (e: Exception) {
-                e.printStackTrace()
-                runOnUiThread {
-                    Toast.makeText(this@VirtualDisplayTestActivity, "Failed to launch DeX: ${e.message}", Toast.LENGTH_LONG).show()
+        virtualDisplay?.let { vd ->
+            scope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        val manager = Adb.createManager(this@VirtualDisplayTestActivity)
+                        if (manager.autoConnect(this@VirtualDisplayTestActivity, 5_000)) {
+                            val displayId = vd.display.displayId
+                            val cmd = "am start -n com.sec.android.app.launcher/com.honeyspace.dexservice.SecondaryLauncher --display $displayId"
+                            Adb.runShell(manager, cmd)
+                            
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@VirtualDisplayTestActivity, "DeX command sent via ADB to display $displayId", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@VirtualDisplayTestActivity, "ADB not connected. Please pair first in Main Menu.", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@VirtualDisplayTestActivity, "ADB Failed: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
                 }
             }
         }
