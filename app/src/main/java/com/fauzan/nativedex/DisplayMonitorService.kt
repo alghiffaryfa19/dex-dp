@@ -16,7 +16,6 @@ import android.app.ActivityOptions
 class DisplayMonitorService : Service(), DisplayManager.DisplayListener {
 
     private lateinit var displayManager: DisplayManager
-    private lateinit var displayManager: DisplayManager
 
     override fun onCreate() {
         super.onCreate()
