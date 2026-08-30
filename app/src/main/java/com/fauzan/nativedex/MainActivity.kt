@@ -47,13 +47,21 @@ class MainActivity : AppCompatActivity() {
                         .setDeviceProfile(AssociationRequest.DEVICE_PROFILE_APP_STREAMING)
                         .build()
 
-                    cdm.associate(request, { intentSender ->
-                        try {
-                            startIntentSenderForResult(intentSender, REQUEST_CODE_ASSOCIATE, null, 0, 0, 0)
-                        } catch (e: IntentSender.SendIntentException) {
-                            e.printStackTrace()
+                    val callback = object : CompanionDeviceManager.Callback() {
+                        override fun onAssociationPending(intentSender: IntentSender) {
+                            try {
+                                startIntentSenderForResult(intentSender, REQUEST_CODE_ASSOCIATE, null, 0, 0, 0)
+                            } catch (e: IntentSender.SendIntentException) {
+                                e.printStackTrace()
+                            }
                         }
-                    }, null)
+                        override fun onFailure(error: CharSequence?) {
+                            runOnUiThread {
+                                statusText.text = "VDM Association failed: $error"
+                            }
+                        }
+                    }
+                    cdm.associate(request, ContextCompat.getMainExecutor(this@MainActivity), callback)
                 } else {
                     statusText.text = "VDM requires Android 13+"
                 }

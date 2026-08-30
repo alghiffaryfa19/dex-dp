@@ -15,6 +15,7 @@ import android.widget.TextView
 import android.hardware.input.VirtualMouse
 import android.graphics.PointF
 import android.os.Build
+import androidx.appcompat.app.AppCompatActivity
 
 class TouchpadActivity : AppCompatActivity() {
 
