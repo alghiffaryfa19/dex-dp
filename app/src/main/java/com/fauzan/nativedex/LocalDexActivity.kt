@@ -146,31 +146,18 @@ class LocalDexActivity : AppCompatActivity() {
 
     private fun launchDeX(displayId: Int) {
         try {
-            val dexIntent = Intent().apply {
-                setClassName("com.sec.android.app.desktoplauncher", "com.sec.android.app.desktoplauncher.NewDesktopLauncher")
+            val dexIntent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
             }
-            debugText?.append("Launching: com.sec.android.app.desktoplauncher.NewDesktopLauncher\n")
+            debugText?.append("Launching: ACTION_MAIN (Home)\n")
             val options = ActivityOptions.makeBasic()
             options.launchDisplayId = displayId
             startActivity(dexIntent, options.toBundle())
         } catch (e: Exception) {
             e.printStackTrace()
-            debugText?.append("Primary Launch Failed: ${e.message}\n")
-            // Fallback to secondary launcher if standard desktop launcher is not found
-            try {
-                val fallbackIntent = Intent().apply {
-                    setClassName("com.sec.android.app.launcher", "com.honeyspace.dexservice.SecondaryLauncher")
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
-                }
-                debugText?.append("Fallback: com.honeyspace.dexservice.SecondaryLauncher\n")
-                val options = ActivityOptions.makeBasic()
-                options.launchDisplayId = displayId
-                startActivity(fallbackIntent, options.toBundle())
-            } catch (ex: Exception) {
-                debugText?.append("Fallback Failed: ${ex.message}\n")
-                Toast.makeText(this, "Failed to launch DeX: ${ex.message}", Toast.LENGTH_LONG).show()
-            }
+            debugText?.append("Launch Failed: ${e.message}\n")
+            Toast.makeText(this, "Failed to launch DeX: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
