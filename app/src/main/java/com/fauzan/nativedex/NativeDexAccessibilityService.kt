@@ -164,7 +164,34 @@ class NativeDexAccessibilityService : AccessibilityService() {
         }, null)
         
         if (!result) {
-            Log.e(TAG, "dispatchGesture returned false")
+            Log.e(TAG, "dispatchGesture returned false for click")
         }
+    }
+
+    fun injectLongClick(x: Float, y: Float, displayId: Int) {
+        if (displayId == -1) return
+        val path = Path().apply { moveTo(x, y) }
+        val stroke = GestureDescription.StrokeDescription(path, 0, 600) // 600ms for long press
+        val gesture = GestureDescription.Builder()
+            .addStroke(stroke)
+            .setDisplayId(displayId)
+            .build()
+        val result = dispatchGesture(gesture, null, null)
+        if (!result) Log.e(TAG, "dispatchGesture returned false for long click")
+    }
+
+    fun injectSwipe(startX: Float, startY: Float, endX: Float, endY: Float, displayId: Int) {
+        if (displayId == -1) return
+        val path = Path().apply {
+            moveTo(startX, startY)
+            lineTo(endX, endY)
+        }
+        val stroke = GestureDescription.StrokeDescription(path, 0, 300) // 300ms swipe
+        val gesture = GestureDescription.Builder()
+            .addStroke(stroke)
+            .setDisplayId(displayId)
+            .build()
+        val result = dispatchGesture(gesture, null, null)
+        if (!result) Log.e(TAG, "dispatchGesture returned false for swipe")
     }
 }
