@@ -102,12 +102,12 @@ class MainActivity : AppCompatActivity() {
         //val displayListener = object : DisplayManager.DisplayListener {
         //    override fun onDisplayAdded(displayId: Int) { updateUI(btnLaunchDeX, displayListText) }
         //    override fun onDisplayRemoved(displayId: Int) { updateUI(btnLaunchDeX, displayListText) }
-        //   override fun onDisplayChanged(displayId: Int) { updateUI(btnLaunchDeX, displayListText) }
+        //    override fun onDisplayChanged(displayId: Int) { updateUI(btnLaunchDeX, displayListText) }
         //}
         //displayManager.registerDisplayListener(displayListener, null)
         //updateUI(btnLaunchDeX, displayListText)
 
-        //setContentView(layout)
+        setContentView(layout)
     }
 
     private fun updateUI(button: Button, displayListText: TextView) {
