@@ -12,6 +12,8 @@ import android.util.Log
 import android.view.Display
 import androidx.core.app.NotificationCompat
 import android.app.ActivityOptions
+import android.os.Handler
+import android.os.Looper
 
 class DisplayMonitorService : Service(), DisplayManager.DisplayListener {
 
@@ -66,25 +68,30 @@ class DisplayMonitorService : Service(), DisplayManager.DisplayListener {
         val display = displayManager.getDisplay(displayId) ?: return
         Log.i(TAG, "New external display detected: ${display.name} (flags: ${display.flags})")
         
-        try {
-            // Launch Samsung DeX natively on the HDMI display
-            val dexIntent = Intent().apply {
-                setClassName("com.sec.android.app.launcher", "com.honeyspace.dexservice.SecondaryLauncher")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
-            }
-            val options = ActivityOptions.makeBasic()
-            options.launchDisplayId = displayId
-            startActivity(dexIntent, options.toBundle())
+        Handler(Looper.getMainLooper()).postDelayed({
+            try {
+                val currentDisplay = displayManager.getDisplay(displayId)
+                if (currentDisplay != null) {
+                    // Launch Samsung DeX natively on the HDMI display
+                    val dexIntent = Intent().apply {
+                        setClassName("com.sec.android.app.launcher", "com.honeyspace.dexservice.SecondaryLauncher")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+                    }
+                    val options = ActivityOptions.makeBasic()
+                    options.launchDisplayId = displayId
+                    startActivity(dexIntent, options.toBundle())
 
-            // Launch TouchpadActivity on the primary display
-            val touchpadIntent = Intent(this, TouchpadActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                putExtra("displayId", displayId)
+                    // Launch TouchpadActivity on the primary display
+                    val touchpadIntent = Intent(this, TouchpadActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        putExtra("displayId", displayId)
+                    }
+                    startActivity(touchpadIntent)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error configuring display $displayId", e)
             }
-            startActivity(touchpadIntent)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error configuring display $displayId", e)
-        }
+        }, 4000)
     }
 
     private fun launchDesktopLauncher(displayId: Int) {
