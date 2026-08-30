@@ -19,6 +19,8 @@ class TouchpadActivity : AppCompatActivity() {
 
     private var lastX = 0f
     private var lastY = 0f
+    private var lastHoverX = 0f
+    private var lastHoverY = 0f
     private var downTime = 0L
     private var isMoved = false
 
@@ -96,29 +98,55 @@ class TouchpadActivity : AppCompatActivity() {
                 else -> false
             }
         }
+    }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            layout.setOnCapturedPointerListener { _, event ->
-                when (event.actionMasked) {
-                    MotionEvent.ACTION_MOVE -> {
-                        val dx = event.x * sensitivity
-                        val dy = event.y * sensitivity
-                        NativeDexAccessibilityService.instance?.moveCursor(dx, dy)
-                        true
-                    }
-                    MotionEvent.ACTION_BUTTON_PRESS, MotionEvent.ACTION_DOWN -> {
-                        val accService = NativeDexAccessibilityService.instance
-                        if (accService != null) {
-                            val (cX, cY) = accService.getCursorPosition()
-                            val targetDisplayId = accService.activeDisplayId
-                            accService.injectClick(cX, cY, targetDisplayId)
-                        }
-                        true
-                    }
-                    else -> false
+    override fun onCapturedPointerEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_MOVE -> {
+                val dx = event.x * sensitivity
+                val dy = event.y * sensitivity
+                NativeDexAccessibilityService.instance?.moveCursor(dx, dy)
+                return true
+            }
+            MotionEvent.ACTION_BUTTON_PRESS, MotionEvent.ACTION_DOWN -> {
+                val accService = NativeDexAccessibilityService.instance
+                if (accService != null) {
+                    val (cX, cY) = accService.getCursorPosition()
+                    val targetDisplayId = accService.activeDisplayId
+                    accService.injectClick(cX, cY, targetDisplayId)
                 }
+                return true
             }
         }
+        return super.onCapturedPointerEvent(event)
+    }
+
+    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_HOVER_ENTER -> {
+                lastHoverX = event.x
+                lastHoverY = event.y
+                return true
+            }
+            MotionEvent.ACTION_HOVER_MOVE -> {
+                val dx = (event.x - lastHoverX) * sensitivity
+                val dy = (event.y - lastHoverY) * sensitivity
+                NativeDexAccessibilityService.instance?.moveCursor(dx, dy)
+                lastHoverX = event.x
+                lastHoverY = event.y
+                return true
+            }
+            MotionEvent.ACTION_BUTTON_PRESS -> {
+                val accService = NativeDexAccessibilityService.instance
+                if (accService != null) {
+                    val (cX, cY) = accService.getCursorPosition()
+                    val targetDisplayId = accService.activeDisplayId
+                    accService.injectClick(cX, cY, targetDisplayId)
+                }
+                return true
+            }
+        }
+        return super.onGenericMotionEvent(event)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

@@ -11,17 +11,12 @@ import android.os.IBinder
 import android.util.Log
 import android.view.Display
 import androidx.core.app.NotificationCompat
-import io.github.muntashirakon.adb.AbsAdbConnectionManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
+import android.app.ActivityOptions
 
 class DisplayMonitorService : Service(), DisplayManager.DisplayListener {
 
     private lateinit var displayManager: DisplayManager
-    private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
-    private var adbManager: AbsAdbConnectionManager? = null
+    private lateinit var displayManager: DisplayManager
 
     override fun onCreate() {
         super.onCreate()
@@ -36,26 +31,15 @@ class DisplayMonitorService : Service(), DisplayManager.DisplayListener {
         displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
         displayManager.registerDisplayListener(this, null)
 
-        // Initialize ADB
-        serviceScope.launch {
-            adbManager = Adb.createManager(this@DisplayMonitorService)
-            if (adbManager?.autoConnect(this@DisplayMonitorService, 10_000) == true) {
-                Log.i(TAG, "ADB Connected successfully")
-            } else {
-                Log.e(TAG, "ADB Connection failed")
-            }
-            
-            // Check displays already connected
-            displayManager.displays.forEach { display ->
-                handleNewDisplay(display.displayId)
-            }
+        // Check displays already connected
+        displayManager.displays.forEach { display ->
+            handleNewDisplay(display.displayId)
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         displayManager.unregisterDisplayListener(this)
-        adbManager?.close()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -83,25 +67,24 @@ class DisplayMonitorService : Service(), DisplayManager.DisplayListener {
         val display = displayManager.getDisplay(displayId) ?: return
         Log.i(TAG, "New external display detected: ${display.name} (flags: ${display.flags})")
         
-        serviceScope.launch {
-            try {
-                val manager = adbManager
-                if (manager != null) {
-                    // Launch Samsung DeX on the HDMI display
-                    val startDexCommand = "am start -n com.sec.android.app.launcher/com.honeyspace.dexservice.SecondaryLauncher -f 0x18000000 --display $displayId"
-                    Log.i(TAG, "Running command: $startDexCommand")
-                    Adb.runShell(manager, startDexCommand)
-
-                    // Launch TouchpadActivity on the primary display
-                    val touchpadIntent = Intent(this@DisplayMonitorService, TouchpadActivity::class.java).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        putExtra("displayId", displayId)
-                    }
-                    startActivity(touchpadIntent)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error configuring display $displayId", e)
+        try {
+            // Launch Samsung DeX natively on the HDMI display
+            val dexIntent = Intent().apply {
+                setClassName("com.sec.android.app.launcher", "com.honeyspace.dexservice.SecondaryLauncher")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
             }
+            val options = ActivityOptions.makeBasic()
+            options.launchDisplayId = displayId
+            startActivity(dexIntent, options.toBundle())
+
+            // Launch TouchpadActivity on the primary display
+            val touchpadIntent = Intent(this, TouchpadActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                putExtra("displayId", displayId)
+            }
+            startActivity(touchpadIntent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error configuring display $displayId", e)
         }
     }
 
