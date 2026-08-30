@@ -12,24 +12,22 @@ import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
-import com.fauzan.nativedex.scrcpy.ScrcpySession
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
+import android.companion.virtual.sensor.VirtualMouse
+import android.graphics.PointF
+import android.os.Build
 
 class TouchpadActivity : AppCompatActivity() {
 
-    private var session: ScrcpySession? = null
     private var displayId = 0
-    private var extWidth = 1920
-    private var extHeight = 1080
+    private var virtualMouse: VirtualMouse? = null
+    private var lastX = 0f
+    private var lastY = 0f
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Hide system UI (make it a black fullscreen touchpad)
+        // Hide system UI
         window.decorView.systemUiVisibility = (
             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
             or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
@@ -44,7 +42,7 @@ class TouchpadActivity : AppCompatActivity() {
             setBackgroundColor(android.graphics.Color.BLACK)
         }
         val statusText = TextView(this).apply {
-            text = "Starting Touchpad..."
+            text = "Starting VDM Touchpad..."
             setTextColor(android.graphics.Color.GRAY)
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT,
@@ -62,53 +60,48 @@ class TouchpadActivity : AppCompatActivity() {
             return
         }
 
-        // Get external display dimensions
-        val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
-        val display = displayManager.getDisplay(displayId)
-        if (display != null) {
-            val metrics = android.util.DisplayMetrics()
-            display.getRealMetrics(metrics)
-            extWidth = metrics.widthPixels
-            extHeight = metrics.heightPixels
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            virtualMouse = VdmService.instance?.getVirtualMouse() ?: VdmService.instance?.createMouse()
+            if (virtualMouse != null) {
+                statusText.text = "VDM Touchpad Active"
+            } else {
+                statusText.text = "Failed to obtain VirtualMouse"
+            }
+        } else {
+            statusText.text = "VirtualMouse requires Android 14+"
         }
 
-        layout.setOnTouchListener { view, event ->
-            // Forward events to scrcpy controller
-            session?.controller?.forwardMotionEvent(event, view.width, view.height, extWidth, extHeight)
-            true
-        }
-
-        startScrcpySession(statusText)
-    }
-
-    private fun startScrcpySession(statusText: TextView) {
-        val scrcpy = ScrcpySession(this, displayId)
-        session = scrcpy
-
-        lifecycleScope.launch {
-            scrcpy.state.collectLatest { state ->
-                when (state) {
-                    is ScrcpySession.State.Starting -> {
-                        statusText.text = state.message
+        layout.setOnTouchListener { _, event ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && virtualMouse != null) {
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        lastX = event.x
+                        lastY = event.y
                     }
-                    is ScrcpySession.State.Running -> {
-                        statusText.text = "Touchpad Active (Screen Off)"
+                    MotionEvent.ACTION_MOVE -> {
+                        val dx = event.x - lastX
+                        val dy = event.y - lastY
+                        if (dx != 0f || dy != 0f) {
+                            virtualMouse?.sendRelativeEvent(android.companion.virtual.sensor.VirtualMouseRelativeEvent.Builder()
+                                .setRelativeX(dx)
+                                .setRelativeY(dy)
+                                .build())
+                            lastX = event.x
+                            lastY = event.y
+                        }
                     }
-                    is ScrcpySession.State.Stopped -> {
-                        val msg = state.error ?: "Stopped"
-                        statusText.text = msg
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
+                        // Check if it's a tap
+                        if (event.eventTime - event.downTime < 200) {
+                            val btnEvent = android.companion.virtual.sensor.VirtualMouseButtonEvent.Builder()
+                                .setButtonCode(android.companion.virtual.sensor.VirtualMouseButtonEvent.BUTTON_PRIMARY)
+                            virtualMouse?.sendButtonEvent(btnEvent.setAction(android.companion.virtual.sensor.VirtualMouseButtonEvent.ACTION_BUTTON_PRESS).build())
+                            virtualMouse?.sendButtonEvent(btnEvent.setAction(android.companion.virtual.sensor.VirtualMouseButtonEvent.ACTION_BUTTON_RELEASE).build())
+                        }
                     }
                 }
             }
+            true
         }
-
-        lifecycleScope.launch {
-            scrcpy.start()
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        session?.stop()
     }
 }
