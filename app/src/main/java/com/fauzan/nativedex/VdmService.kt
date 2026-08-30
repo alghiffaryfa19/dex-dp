@@ -4,7 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Service
 import android.companion.virtual.VirtualDeviceManager
 import android.companion.virtual.VirtualDeviceParams
-import android.companion.virtual.VirtualDeviceManager.VirtualDevice
+import android.companion.virtual.VirtualDevice
 import android.content.Intent
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
@@ -18,7 +18,7 @@ class VdmService : Service() {
 
     private var virtualDevice: VirtualDevice? = null
     private var virtualDisplay: VirtualDisplay? = null
-    private var virtualMouse: android.companion.virtual.sensor.VirtualMouse? = null
+    private var virtualMouse: android.hardware.input.VirtualMouse? = null
 
     override fun onBind(intent: Intent?): IBinder? {
         return null
@@ -97,11 +97,11 @@ class VdmService : Service() {
     }
 
     @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
-    fun createMouse(): android.companion.virtual.sensor.VirtualMouse? {
+    fun createMouse(): android.hardware.input.VirtualMouse? {
         if (virtualDevice == null || virtualDisplay == null) return null
         try {
             // In Android 14, VirtualMouse is created via VirtualDevice
-            val mouseConfig = android.companion.virtual.sensor.VirtualMouseConfig.Builder()
+            val mouseConfig = android.hardware.input.VirtualMouseConfig.Builder()
                 .setAssociatedDisplayId(virtualDisplay!!.display.displayId)
                 .setVendorId(0x1234)
                 .setProductId(0x5678)

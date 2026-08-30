@@ -12,7 +12,7 @@ import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.TextView
-import android.companion.virtual.sensor.VirtualMouse
+import android.hardware.input.VirtualMouse
 import android.graphics.PointF
 import android.os.Build
 
@@ -82,7 +82,7 @@ class TouchpadActivity : AppCompatActivity() {
                         val dx = event.x - lastX
                         val dy = event.y - lastY
                         if (dx != 0f || dy != 0f) {
-                            virtualMouse?.sendRelativeEvent(android.companion.virtual.sensor.VirtualMouseRelativeEvent.Builder()
+                            virtualMouse?.sendRelativeEvent(android.hardware.input.VirtualMouseRelativeEvent.Builder()
                                 .setRelativeX(dx)
                                 .setRelativeY(dy)
                                 .build())
@@ -93,10 +93,10 @@ class TouchpadActivity : AppCompatActivity() {
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
                         // Check if it's a tap
                         if (event.eventTime - event.downTime < 200) {
-                            val btnEvent = android.companion.virtual.sensor.VirtualMouseButtonEvent.Builder()
-                                .setButtonCode(android.companion.virtual.sensor.VirtualMouseButtonEvent.BUTTON_PRIMARY)
-                            virtualMouse?.sendButtonEvent(btnEvent.setAction(android.companion.virtual.sensor.VirtualMouseButtonEvent.ACTION_BUTTON_PRESS).build())
-                            virtualMouse?.sendButtonEvent(btnEvent.setAction(android.companion.virtual.sensor.VirtualMouseButtonEvent.ACTION_BUTTON_RELEASE).build())
+                            val btnEvent = android.hardware.input.VirtualMouseButtonEvent.Builder()
+                                .setButtonCode(android.hardware.input.VirtualMouseButtonEvent.BUTTON_PRIMARY)
+                            virtualMouse?.sendButtonEvent(btnEvent.setAction(android.hardware.input.VirtualMouseButtonEvent.ACTION_BUTTON_PRESS).build())
+                            virtualMouse?.sendButtonEvent(btnEvent.setAction(android.hardware.input.VirtualMouseButtonEvent.ACTION_BUTTON_RELEASE).build())
                         }
                     }
                 }
