@@ -18,12 +18,12 @@ class VirtualDesktopActivity : AppCompatActivity() {
             gravity = android.view.Gravity.CENTER
         }
 
-        val text = TextView(this).apply {
+        val textView = TextView(this).apply {
             text = "Welcome to Virtual Desktop!"
             textSize = 32f
             setTextColor(android.graphics.Color.WHITE)
         }
-        layout.addView(text)
+        layout.addView(textView)
 
         val button = Button(this).apply {
             text = "Click Me!"

@@ -50,21 +50,7 @@ class DesktopLauncherActivity : AppCompatActivity() {
 
         surfaceView.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(holder: SurfaceHolder) {
-                statusText.text = "Surface Ready. Starting VDM Display..."
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    val display = VdmService.instance?.createDisplay(
-                        holder.surface,
-                        surfaceView.width,
-                        surfaceView.height,
-                        resources.displayMetrics.densityDpi
-                    )
-                    if (display != null) {
-                        statusText.visibility = View.GONE
-                        Log.i("DesktopLauncher", "VDM Display started on Surface")
-                    } else {
-                        statusText.text = "VDM Not Initialized. Please pair first."
-                    }
-                }
+                statusText.text = "Surface Ready. (Virtual Display test pending)"
             }
 
             override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
