@@ -34,17 +34,6 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(statusText)
 
-        //val btnStart = Button(this).apply {
-        //    text = "Start NativeDex Monitor"
-        //    setOnClickListener {
-        //        if (checkPermissions()) {
-        //            startMonitorService()
-        //            statusText.text = "Monitor Service is running.\nConnect HDMI to trigger Desktop mode."
-        //        }
-        //    }
-        //}
-        //layout.addView(btnStart)
-        
         val btnPermissions = Button(this).apply {
             text = "Enable Cursor Permissions"
             setOnClickListener {
@@ -117,20 +106,4 @@ class MainActivity : AppCompatActivity() {
             button.setTextColor(android.graphics.Color.GRAY)
         }
     }
-    
-    private fun checkPermissions(): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
-                return false
-            }
-        }
-        return true
-    }
-
-    private fun startMonitorService() {
-        val intent = Intent(this, DisplayMonitorService::class.java)
-        ContextCompat.startForegroundService(this, intent)
-    }
-
 }

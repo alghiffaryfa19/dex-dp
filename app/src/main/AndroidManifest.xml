@@ -29,11 +29,7 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".DesktopLauncherActivity"
-            android:exported="true"
-            android:launchMode="singleInstancePerTask"
-            android:excludeFromRecents="true" />
+
             
         <activity
             android:name=".TouchpadActivity"
@@ -41,19 +37,11 @@
             android:launchMode="singleTop"
             android:screenOrientation="portrait" />
 
-        <service
-            android:name=".DisplayMonitorService"
-            android:exported="false" />
 
-        <activity
-            android:name=".VirtualDisplayTestActivity"
-            android:exported="true" />
+
+
             
-        <activity
-            android:name=".VirtualDesktopActivity"
-            android:exported="true"
-            android:resizeableActivity="true"
-            android:configChanges="orientation|screenSize" />
+
 
 
 
