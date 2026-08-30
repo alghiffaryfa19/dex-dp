@@ -55,18 +55,7 @@
             android:resizeableActivity="true"
             android:configChanges="orientation|screenSize" />
 
-        <service
-            android:name=".PairingInputService"
-            android:exported="false" />
 
-        <receiver
-            android:name=".PairingInputReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.fauzan.nativedex.PAIRING_INPUT" />
-                <action android:name="com.fauzan.nativedex.PAIRING_CANCEL" />
-            </intent-filter>
-        </receiver>
 
         <service
             android:name=".NativeDexAccessibilityService"

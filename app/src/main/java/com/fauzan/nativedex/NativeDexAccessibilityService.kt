@@ -194,4 +194,49 @@ class NativeDexAccessibilityService : AccessibilityService() {
         val result = dispatchGesture(gesture, null, null)
         if (!result) Log.e(TAG, "dispatchGesture returned false for swipe")
     }
+
+    private var currentDragStroke: GestureDescription.StrokeDescription? = null
+
+    fun startDrag(x: Float, y: Float, displayId: Int) {
+        if (displayId == -1) return
+        val path = Path().apply { moveTo(x, y) }
+        currentDragStroke = GestureDescription.StrokeDescription(path, 0, 100, true)
+        
+        val gesture = GestureDescription.Builder()
+            .addStroke(currentDragStroke!!)
+            .setDisplayId(displayId)
+            .build()
+            
+        dispatchGesture(gesture, null, null)
+    }
+
+    fun updateDrag(x: Float, y: Float, displayId: Int) {
+        if (displayId == -1 || currentDragStroke == null) return
+        val path = Path().apply { moveTo(x, y) }
+        
+        val stroke = currentDragStroke!!.continueStroke(path, 0, 50, true)
+        currentDragStroke = stroke
+        
+        val gesture = GestureDescription.Builder()
+            .addStroke(stroke)
+            .setDisplayId(displayId)
+            .build()
+            
+        dispatchGesture(gesture, null, null)
+    }
+
+    fun endDrag(x: Float, y: Float, displayId: Int) {
+        if (displayId == -1 || currentDragStroke == null) return
+        val path = Path().apply { moveTo(x, y) }
+        
+        val stroke = currentDragStroke!!.continueStroke(path, 0, 50, false)
+        currentDragStroke = null
+        
+        val gesture = GestureDescription.Builder()
+            .addStroke(stroke)
+            .setDisplayId(displayId)
+            .build()
+            
+        dispatchGesture(gesture, null, null)
+    }
 }

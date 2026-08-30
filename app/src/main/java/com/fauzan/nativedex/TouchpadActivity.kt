@@ -32,6 +32,8 @@ class TouchpadActivity : AppCompatActivity() {
     private var downTime = 0L
     private var isMoved = false
     private var maxPointersDown = 1
+    private var lastUpTime = 0L
+    private var isDraggingState = false
 
     private val clickThreshold = 10f // pixels
     private val clickTimeThreshold = 300L // ms
@@ -67,7 +69,7 @@ class TouchpadActivity : AppCompatActivity() {
         }
 
         val statusText = TextView(this).apply {
-            text = "MULTI-TOUCHPAD\n• 1 Finger: Move & Tap to Left Click\n• 2 Fingers: Swipe to Scroll & Tap to Right Click\n(Physical Mouse Supported)"
+            text = "MULTI-TOUCHPAD\n• 1 Finger: Move & Tap to Left Click\n• 2 Fingers: Swipe to Scroll & Tap to Right Click\n• Double Tap & Hold: Drag\n(Physical Mouse Supported)"
             setTextColor(Color.parseColor("#444444"))
             gravity = Gravity.CENTER
             layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
@@ -92,9 +94,16 @@ class TouchpadActivity : AppCompatActivity() {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 // First finger down
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastUpTime < 250L) {
+                    isDraggingState = true
+                } else {
+                    isDraggingState = false
+                }
+                
                 lastX = event.x
                 lastY = event.y
-                downTime = System.currentTimeMillis()
+                downTime = currentTime
                 isMoved = false
                 maxPointersDown = 1
                 return true
@@ -114,10 +123,25 @@ class TouchpadActivity : AppCompatActivity() {
                     val dy = (event.y - lastY) * sensitivity
                     
                     if (Math.abs(dx) > clickThreshold || Math.abs(dy) > clickThreshold) {
+                        if (!isMoved && isDraggingState) {
+                            val accService = NativeDexAccessibilityService.instance
+                            if (accService != null) {
+                                val (cX, cY) = accService.getCursorPosition()
+                                accService.startDrag(cX, cY, accService.activeDisplayId)
+                            }
+                        }
                         isMoved = true
                     }
                     
                     NativeDexAccessibilityService.instance?.moveCursor(dx, dy)
+                    
+                    if (isMoved && isDraggingState) {
+                        val accService = NativeDexAccessibilityService.instance
+                        if (accService != null) {
+                            val (cX, cY) = accService.getCursorPosition()
+                            accService.updateDrag(cX, cY, accService.activeDisplayId)
+                        }
+                    }
                     
                     lastX = event.x
                     lastY = event.y
@@ -147,7 +171,14 @@ class TouchpadActivity : AppCompatActivity() {
                 // Wait for all fingers to be lifted before triggering clicks
                 if (event.actionMasked == MotionEvent.ACTION_UP) {
                     val upTime = System.currentTimeMillis()
-                    if (!isMoved && (upTime - downTime) < clickTimeThreshold) {
+                    
+                    if (isDraggingState && isMoved) {
+                        val accService = NativeDexAccessibilityService.instance
+                        if (accService != null) {
+                            val (cX, cY) = accService.getCursorPosition()
+                            accService.endDrag(cX, cY, accService.activeDisplayId)
+                        }
+                    } else if (!isMoved && (upTime - downTime) < clickTimeThreshold) {
                         val accService = NativeDexAccessibilityService.instance
                         if (accService != null) {
                             val (cX, cY) = accService.getCursorPosition()
@@ -158,6 +189,9 @@ class TouchpadActivity : AppCompatActivity() {
                             }
                         }
                     }
+                    
+                    lastUpTime = upTime
+                    isDraggingState = false
                 }
                 return true
             }

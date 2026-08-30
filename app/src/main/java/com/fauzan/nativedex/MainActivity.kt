@@ -133,7 +133,4 @@ class MainActivity : AppCompatActivity() {
         ContextCompat.startForegroundService(this, intent)
     }
 
-    companion object {
-        const val EXTRA_FROM_PAIRING = "com.fauzan.nativedex.FROM_PAIRING"
-    }
 }
