@@ -32,8 +32,7 @@ class DexShizukuService : INativeDexService.Stub() {
         // VIRTUAL_DISPLAY_FLAG_TRUSTED is 1 << 10 (1024)
         val VIRTUAL_DISPLAY_FLAG_TRUSTED = 1 shl 10
         val flags = DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC or 
-                    DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION or 
-                    VIRTUAL_DISPLAY_FLAG_TRUSTED
+                    DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION
 
         return try {
             virtualDisplay?.release()
