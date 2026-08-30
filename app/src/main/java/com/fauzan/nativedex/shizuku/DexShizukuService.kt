@@ -25,16 +25,19 @@ class DexShizukuService : INativeDexService.Stub() {
         return getSystemContextMethod.invoke(currentActivityThread) as Context
     }
 
-    override fun createTrustedVirtualDisplay(surface: Surface, width: Int, height: Int, densityDpi: Int): Int {
-        val context = getSystemContext()
-        val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
-        
-        // VIRTUAL_DISPLAY_FLAG_TRUSTED is 1 << 10 (1024)
-        val VIRTUAL_DISPLAY_FLAG_TRUSTED = 1 shl 10
-        val flags = DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC or 
-                    DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION
-
+    override fun createTrustedVirtualDisplay(surface: Surface, width: Int, height: Int, densityDpi: Int): String {
         return try {
+            if (android.os.Looper.myLooper() == null) {
+                android.os.Looper.prepare()
+            }
+            val context = getSystemContext()
+            val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+            
+            // VIRTUAL_DISPLAY_FLAG_TRUSTED is 1 << 10 (1024)
+            val VIRTUAL_DISPLAY_FLAG_TRUSTED = 1 shl 10
+            val flags = DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC or 
+                        DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION
+
             virtualDisplay?.release()
             virtualDisplay = displayManager.createVirtualDisplay(
                 "NativeDexTrusted",
@@ -44,10 +47,11 @@ class DexShizukuService : INativeDexService.Stub() {
                 surface,
                 flags
             )
-            virtualDisplay?.display?.displayId ?: -1
+            virtualDisplay?.display?.displayId?.toString() ?: "Error: virtualDisplay is null"
         } catch (e: Exception) {
+            val trace = android.util.Log.getStackTraceString(e)
             e.printStackTrace()
-            -1
+            "Error: ${e.message}\n$trace"
         }
     }
 

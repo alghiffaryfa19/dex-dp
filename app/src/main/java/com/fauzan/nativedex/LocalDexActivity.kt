@@ -115,12 +115,14 @@ class LocalDexActivity : AppCompatActivity() {
             val height = 1080
             val density = displayMetrics.densityDpi // Or override with DeX specific density (e.g., 160 or 240)
 
-            val displayId = dexService?.createTrustedVirtualDisplay(surface, width, height, density) ?: -1
-            if (displayId != -1) {
+            val result = dexService?.createTrustedVirtualDisplay(surface, width, height, density) ?: "Error: Service is null"
+            val displayId = result.toIntOrNull()
+            if (displayId != null) {
                 Log.d("LocalDex", "Virtual Display created with ID: $displayId")
                 launchDeX(displayId)
             } else {
-                Toast.makeText(this, "Failed to create virtual display", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Creation failed: ${result.take(100)}...", Toast.LENGTH_LONG).show()
+                Log.e("LocalDex", "Creation failed: $result")
             }
         } catch (e: Exception) {
             e.printStackTrace()
