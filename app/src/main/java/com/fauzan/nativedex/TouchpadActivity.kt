@@ -14,6 +14,10 @@ import androidx.appcompat.app.AppCompatActivity
 import android.view.Gravity
 import android.view.ViewGroup
 
+import android.hardware.display.DisplayManager
+import android.content.Context
+import android.view.Display
+
 class TouchpadActivity : AppCompatActivity() {
 
     private var lastX = 0f
@@ -26,6 +30,16 @@ class TouchpadActivity : AppCompatActivity() {
     private val clickThreshold = 10f // pixels
     private val clickTimeThreshold = 300L // ms
     private val sensitivity = 1.5f
+
+    override fun onResume() {
+        super.onResume()
+        // Ensure accessibility service is tracking the external display
+        val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+        val extDisplay = displayManager.displays.firstOrNull { it.displayId != Display.DEFAULT_DISPLAY }
+        if (extDisplay != null) {
+            NativeDexAccessibilityService.instance?.attachToDisplay(extDisplay)
+        }
+    }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
