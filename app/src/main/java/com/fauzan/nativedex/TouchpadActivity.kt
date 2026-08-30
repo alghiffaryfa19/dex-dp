@@ -73,7 +73,7 @@ class TouchpadActivity : AppCompatActivity() {
                         isMoved = true
                     }
                     
-                    SoftwareCursorService.instance?.moveCursor(dx, dy)
+                    NativeDexAccessibilityService.instance?.moveCursor(dx, dy)
                     
                     lastX = event.x
                     lastY = event.y
@@ -83,12 +83,11 @@ class TouchpadActivity : AppCompatActivity() {
                     val upTime = System.currentTimeMillis()
                     if (!isMoved && (upTime - downTime) < clickTimeThreshold) {
                         // It's a click! Get current cursor position and inject
-                        val cursorService = SoftwareCursorService.instance
                         val accService = NativeDexAccessibilityService.instance
                         
-                        if (cursorService != null && accService != null) {
-                            val (cX, cY) = cursorService.getCursorPosition()
-                            val targetDisplayId = cursorService.activeDisplayId
+                        if (accService != null) {
+                            val (cX, cY) = accService.getCursorPosition()
+                            val targetDisplayId = accService.activeDisplayId
                             accService.injectClick(cX, cY, targetDisplayId)
                         }
                     }

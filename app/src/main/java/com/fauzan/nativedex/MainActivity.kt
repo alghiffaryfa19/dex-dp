@@ -64,7 +64,6 @@ class MainActivity : AppCompatActivity() {
         val btnStartCursor = Button(this).apply {
             text = "Start Cursor & Touchpad"
             setOnClickListener {
-                startService(Intent(this@MainActivity, SoftwareCursorService::class.java))
                 startActivity(Intent(this@MainActivity, TouchpadActivity::class.java))
             }
         }
