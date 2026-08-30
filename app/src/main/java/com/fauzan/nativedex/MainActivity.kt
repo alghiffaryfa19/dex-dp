@@ -3,19 +3,18 @@ package com.fauzan.nativedex
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.hardware.display.DisplayManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.view.Display
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
+import android.app.ActivityOptions
 
 class MainActivity : AppCompatActivity() {
 
@@ -69,35 +68,56 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(btnStartCursor)
 
-        
-        val btnAdbPair = Button(this).apply {
-            text = "Pair Wireless Debugging (ADB)"
+        val btnLaunchDeX = Button(this).apply {
+            text = "Launch Samsung DeX (HDMI Required)"
+            isEnabled = false
             setOnClickListener {
-                if (!checkPermissions()) return@setOnClickListener
-                scope.launch {
+                val displayManager = getSystemService(DISPLAY_SERVICE) as DisplayManager
+                val extDisplay = displayManager.displays.firstOrNull { it.displayId != Display.DEFAULT_DISPLAY }
+                if (extDisplay != null) {
                     try {
-                        val connected = kotlinx.coroutines.withContext(Dispatchers.IO) {
-                            val manager = Adb.createManager(this@MainActivity)
-                            manager.autoConnect(this@MainActivity, 5_000)
+                        val dexIntent = Intent().apply {
+                            setClassName("com.sec.android.app.launcher", "com.honeyspace.dexservice.SecondaryLauncher")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
                         }
-                        if (connected) {
-                            statusText.text = "ADB already connected!"
-                        } else {
-                            startService(Intent(this@MainActivity, PairingInputService::class.java))
-                            statusText.text = "Follow pairing instructions in notification"
-                        }
+                        val options = ActivityOptions.makeBasic()
+                        options.launchDisplayId = extDisplay.displayId
+                        startActivity(dexIntent, options.toBundle())
+                        
+                        // Also start our touchpad
+                        startActivity(Intent(this@MainActivity, TouchpadActivity::class.java))
                     } catch (e: Exception) {
-                        e.printStackTrace()
-                        // libadb throws when pairing is required
-                        startService(Intent(this@MainActivity, PairingInputService::class.java))
-                        statusText.text = "Follow pairing instructions in notification"
+                        statusText.text = "Error launching DeX: ${e.message}"
                     }
                 }
             }
         }
-        layout.addView(btnAdbPair)
+        layout.addView(btnLaunchDeX)
+
+        // Listen for display changes to toggle button
+        val displayManager = getSystemService(DISPLAY_SERVICE) as DisplayManager
+        val displayListener = object : DisplayManager.DisplayListener {
+            override fun onDisplayAdded(displayId: Int) { updateButton(btnLaunchDeX) }
+            override fun onDisplayRemoved(displayId: Int) { updateButton(btnLaunchDeX) }
+            override fun onDisplayChanged(displayId: Int) {}
+        }
+        displayManager.registerDisplayListener(displayListener, null)
+        updateButton(btnLaunchDeX)
 
         setContentView(layout)
+    }
+
+    private fun updateButton(button: Button) {
+        val displayManager = getSystemService(DISPLAY_SERVICE) as DisplayManager
+        val hasExternal = displayManager.displays.any { it.displayId != Display.DEFAULT_DISPLAY }
+        button.isEnabled = hasExternal
+        if (hasExternal) {
+            button.text = "Launch Samsung DeX Natively"
+            button.setTextColor(android.graphics.Color.GREEN)
+        } else {
+            button.text = "Launch Samsung DeX (HDMI Required)"
+            button.setTextColor(android.graphics.Color.GRAY)
+        }
     }
     
     private fun checkPermissions(): Boolean {
