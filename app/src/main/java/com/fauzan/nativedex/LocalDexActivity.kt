@@ -103,7 +103,7 @@ class LocalDexActivity : AppCompatActivity() {
     private fun bindShizukuService() {
         val userServiceArgs = Shizuku.UserServiceArgs(
             ComponentName(packageName, "com.fauzan.nativedex.shizuku.DexShizukuService")
-        ).daemon(false).processNameSuffix("dex_service").debuggable(BuildConfig.DEBUG)
+        ).daemon(false).processNameSuffix("dex_service").debuggable(true)
 
         Shizuku.bindUserService(userServiceArgs, serviceConnection)
     }
@@ -171,6 +171,6 @@ class LocalDexActivity : AppCompatActivity() {
     private val userServiceArgs by lazy {
         Shizuku.UserServiceArgs(
             ComponentName(packageName, "com.fauzan.nativedex.shizuku.DexShizukuService")
-        ).daemon(false).processNameSuffix("dex_service").debuggable(BuildConfig.DEBUG)
+        ).daemon(false).processNameSuffix("dex_service").debuggable(true)
     }
 }
