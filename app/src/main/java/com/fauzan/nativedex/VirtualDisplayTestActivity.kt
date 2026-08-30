@@ -75,7 +75,8 @@ class VirtualDisplayTestActivity : AppCompatActivity() {
                         val manager = Adb.createManager(this@VirtualDisplayTestActivity)
                         if (manager.autoConnect(this@VirtualDisplayTestActivity, 5_000)) {
                             val displayId = vd.display.displayId
-                            val cmd = "am start -n com.sec.android.app.launcher/com.honeyspace.dexservice.SecondaryLauncher --display $displayId"
+                            // 0x18000000 is FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_MULTIPLE_TASK
+                            val cmd = "am start -n com.sec.android.app.launcher/com.honeyspace.dexservice.SecondaryLauncher -f 0x18000000 --display $displayId"
                             Adb.runShell(manager, cmd)
                             
                             withContext(Dispatchers.Main) {
