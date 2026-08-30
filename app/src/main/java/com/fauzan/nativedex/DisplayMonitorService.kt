@@ -92,10 +92,10 @@ class DisplayMonitorService : Service(), DisplayManager.DisplayListener {
                     Log.i(TAG, "Running command: $command")
                     Adb.runShell(manager, command)
                     
-                    // Launch Samsung DeX native launcher on the HDMI display
-                    val startDexCommand = "am start -n com.sec.android.app.launcher/com.honeyspace.dexservice.SecondaryLauncher --display $displayId"
-                    Log.i(TAG, "Running command: $startDexCommand")
-                    Adb.runShell(manager, startDexCommand)
+                    // Launch our own dummy desktop activity on the HDMI display
+                    val startDummyCommand = "am start -n com.fauzan.nativedex/com.fauzan.nativedex.DesktopLauncherActivity --display $displayId"
+                    Log.i(TAG, "Running command: $startDummyCommand")
+                    Adb.runShell(manager, startDummyCommand)
 
                     // Launch TouchpadActivity on the primary display
                     val touchpadIntent = Intent(this@DisplayMonitorService, TouchpadActivity::class.java).apply {
