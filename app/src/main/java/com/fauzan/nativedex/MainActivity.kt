@@ -66,8 +66,56 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(btnStartCursor)
 
+        val btnLaunchDeX = Button(this).apply {
+            text = "Launch Samsung DeX (HDMI Required)"
+            isEnabled = false
+            setOnClickListener {
+                val displayManager = getSystemService(DISPLAY_SERVICE) as DisplayManager
+                val extDisplay = displayManager.displays.firstOrNull { it.displayId != Display.DEFAULT_DISPLAY }
+                if (extDisplay != null) {
+                    try {
+                        val dexIntent = Intent().apply {
+                            setClassName("com.sec.android.app.launcher", "com.honeyspace.dexservice.SecondaryLauncher")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+                        }
+                        val options = ActivityOptions.makeBasic()
+                        options.launchDisplayId = extDisplay.displayId
+                        startActivity(dexIntent, options.toBundle())
+                        
+                        // Also start our touchpad
+                        startActivity(Intent(this@MainActivity, TouchpadActivity::class.java))
+                    } catch (e: Exception) {
+                        statusText.text = "Error launching DeX: ${e.message}"
+                    }
+                }
+            }
+        }
+        layout.addView(btnLaunchDeX)
+
+        // Listen for display changes to toggle button
+        val displayManager = getSystemService(DISPLAY_SERVICE) as DisplayManager
+        val displayListener = object : DisplayManager.DisplayListener {
+            override fun onDisplayAdded(displayId: Int) { updateButton(btnLaunchDeX) }
+            override fun onDisplayRemoved(displayId: Int) { updateButton(btnLaunchDeX) }
+            override fun onDisplayChanged(displayId: Int) {}
+        }
+        displayManager.registerDisplayListener(displayListener, null)
+        updateButton(btnLaunchDeX)
+
         setContentView(layout)
     }
+
+    private fun updateButton(button: Button) {
+        val displayManager = getSystemService(DISPLAY_SERVICE) as DisplayManager
+        val hasExternal = displayManager.displays.any { it.displayId != Display.DEFAULT_DISPLAY }
+        button.isEnabled = hasExternal
+        if (hasExternal) {
+            button.text = "Launch Samsung DeX Natively"
+            button.setTextColor(android.graphics.Color.GREEN)
+        } else {
+            button.text = "Launch Samsung DeX (HDMI Required)"
+            button.setTextColor(android.graphics.Color.GRAY)
+        }
     
     private fun checkPermissions(): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
