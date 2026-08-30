@@ -43,6 +43,7 @@ class LocalDexActivity : AppCompatActivity() {
     }
 
     private var surfaceView: SurfaceView? = null
+    private var debugText: android.widget.TextView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,6 +71,15 @@ class LocalDexActivity : AppCompatActivity() {
             })
         }
         layout.addView(surfaceView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+
+        debugText = android.widget.TextView(this).apply {
+            text = "Initializing Shizuku..."
+            setTextColor(android.graphics.Color.GREEN)
+            setBackgroundColor(android.graphics.Color.parseColor("#80000000"))
+            setPadding(32, 32, 32, 32)
+        }
+        layout.addView(debugText, FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT)
+
         setContentView(layout)
 
         checkShizukuAndBind()
@@ -115,17 +125,21 @@ class LocalDexActivity : AppCompatActivity() {
             val height = 1080
             val density = displayMetrics.densityDpi // Or override with DeX specific density (e.g., 160 or 240)
 
+            debugText?.text = "Creating Trusted Display...\n"
             val result = dexService?.createTrustedVirtualDisplay(surface, width, height, density) ?: "Error: Service is null"
             val displayId = result.toIntOrNull()
             if (displayId != null) {
+                debugText?.append("Display ID: $displayId (Success)\n")
                 Log.d("LocalDex", "Virtual Display created with ID: $displayId")
                 launchDeX(displayId)
             } else {
+                debugText?.append("Display Creation Failed:\n$result\n")
                 Toast.makeText(this, "Creation failed: ${result.take(100)}...", Toast.LENGTH_LONG).show()
                 Log.e("LocalDex", "Creation failed: $result")
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            debugText?.append("IPC Error: ${e.message}\n")
             Toast.makeText(this, "Error IPC: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
@@ -136,21 +150,25 @@ class LocalDexActivity : AppCompatActivity() {
                 setClassName("com.sec.android.app.desktoplauncher", "com.sec.android.app.desktoplauncher.NewDesktopLauncher")
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
             }
+            debugText?.append("Launching: com.sec.android.app.desktoplauncher.NewDesktopLauncher\n")
             val options = ActivityOptions.makeBasic()
             options.launchDisplayId = displayId
             startActivity(dexIntent, options.toBundle())
         } catch (e: Exception) {
             e.printStackTrace()
+            debugText?.append("Primary Launch Failed: ${e.message}\n")
             // Fallback to secondary launcher if standard desktop launcher is not found
             try {
                 val fallbackIntent = Intent().apply {
                     setClassName("com.sec.android.app.launcher", "com.honeyspace.dexservice.SecondaryLauncher")
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
                 }
+                debugText?.append("Fallback: com.honeyspace.dexservice.SecondaryLauncher\n")
                 val options = ActivityOptions.makeBasic()
                 options.launchDisplayId = displayId
                 startActivity(fallbackIntent, options.toBundle())
             } catch (ex: Exception) {
+                debugText?.append("Fallback Failed: ${ex.message}\n")
                 Toast.makeText(this, "Failed to launch DeX: ${ex.message}", Toast.LENGTH_LONG).show()
             }
         }
