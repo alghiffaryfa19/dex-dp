@@ -99,7 +99,6 @@ class TouchpadActivity : AppCompatActivity() {
             }
         }
     }
-    }
 
     override fun onGenericMotionEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
