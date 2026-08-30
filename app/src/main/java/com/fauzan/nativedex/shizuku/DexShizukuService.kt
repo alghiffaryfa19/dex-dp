@@ -50,7 +50,14 @@ class DexShizukuService : INativeDexService.Stub() {
                 surface,
                 flags
             )
-            virtualDisplay?.display?.displayId?.toString() ?: "Error: virtualDisplay is null"
+            val displayId = virtualDisplay?.display?.displayId
+            if (displayId != null) {
+                // Force freeform windowing mode (AOSP Desktop Mode) like LocalDex does
+                Runtime.getRuntime().exec(arrayOf("wm", "set-display-windowing-mode", "-d", displayId.toString(), "5")).waitFor()
+                displayId.toString()
+            } else {
+                "Error: virtualDisplay is null"
+            }
         } catch (e: Exception) {
             val trace = android.util.Log.getStackTraceString(e)
             e.printStackTrace()
