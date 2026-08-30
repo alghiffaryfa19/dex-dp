@@ -2,7 +2,7 @@
 
 > Make zFlip 5 great again
 
-NativeDex is a utility that unlocks Samsung DeX **natively** on your device, without the need for ADB, Root, Shizuku, Virtual Display or USB Debugging!
+NativeDex is a utility that unlocks Samsung DeX **natively** on your device (On One UI 8.0, the Z Flip 5 simply mirrors the built-in display), without the need for ADB, Root, Shizuku, Virtual Display or USB Debugging!
 
 Currently tested on a **Galaxy Z Flip 5 running One UI 8.0 (Android 16)**.
 
