@@ -88,6 +88,15 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(displayListText)
 
+        val btnStartLocalDex = Button(this).apply {
+            text = "Start Native LocalDex (Shizuku)"
+            setTextColor(android.graphics.Color.BLUE)
+            setOnClickListener {
+                startActivity(Intent(this@MainActivity, LocalDexActivity::class.java))
+            }
+        }
+        layout.addView(btnStartLocalDex)
+
         // Listen for display changes to toggle button
         val displayManager = getSystemService(DISPLAY_SERVICE) as DisplayManager
         val displayListener = object : DisplayManager.DisplayListener {
