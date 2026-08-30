@@ -75,12 +75,17 @@ class VirtualDisplayTestActivity : AppCompatActivity() {
                         val manager = Adb.createManager(this@VirtualDisplayTestActivity)
                         if (manager.autoConnect(this@VirtualDisplayTestActivity, 5_000)) {
                             val displayId = vd.display.displayId
-                            // 0x18000000 is FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_MULTIPLE_TASK
-                            val cmd = "am start -n com.sec.android.app.launcher/com.honeyspace.dexservice.SecondaryLauncher -f 0x18000000 --display $displayId"
-                            Adb.runShell(manager, cmd)
+                            
+                            // Enable AOSP Freeform windowing mode (Desktop mode) for this display
+                            val cmdMode = "wm set-display-windowing-mode -d $displayId 5"
+                            Adb.runShell(manager, cmdMode)
+                            
+                            // Launch Settings app as a new task
+                            val cmdLaunch = "am start -n com.android.settings/.Settings -f 0x18000000 --display $displayId"
+                            Adb.runShell(manager, cmdLaunch)
                             
                             withContext(Dispatchers.Main) {
-                                Toast.makeText(this@VirtualDisplayTestActivity, "DeX command sent via ADB to display $displayId", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(this@VirtualDisplayTestActivity, "AOSP Desktop Mode activated on display $displayId", Toast.LENGTH_SHORT).show()
                             }
                         } else {
                             withContext(Dispatchers.Main) {
