@@ -81,22 +81,31 @@ class MainActivity : AppCompatActivity() {
         }
         layout.addView(btnLaunchDeX)
 
+        val displayListText = TextView(this).apply {
+            text = "Loading displays..."
+            textSize = 14f
+            setPadding(0, 32, 0, 0)
+        }
+        layout.addView(displayListText)
+
         // Listen for display changes to toggle button
         val displayManager = getSystemService(DISPLAY_SERVICE) as DisplayManager
         val displayListener = object : DisplayManager.DisplayListener {
-            override fun onDisplayAdded(displayId: Int) { updateButton(btnLaunchDeX) }
-            override fun onDisplayRemoved(displayId: Int) { updateButton(btnLaunchDeX) }
-            override fun onDisplayChanged(displayId: Int) {}
+            override fun onDisplayAdded(displayId: Int) { updateUI(btnLaunchDeX, displayListText) }
+            override fun onDisplayRemoved(displayId: Int) { updateUI(btnLaunchDeX, displayListText) }
+            override fun onDisplayChanged(displayId: Int) { updateUI(btnLaunchDeX, displayListText) }
         }
         displayManager.registerDisplayListener(displayListener, null)
-        updateButton(btnLaunchDeX)
+        updateUI(btnLaunchDeX, displayListText)
 
         setContentView(layout)
     }
 
-    private fun updateButton(button: Button) {
+    private fun updateUI(button: Button, displayListText: TextView) {
         val displayManager = getSystemService(DISPLAY_SERVICE) as DisplayManager
-        val hasExternal = displayManager.displays.any { it.displayId != Display.DEFAULT_DISPLAY }
+        val displays = displayManager.displays
+        
+        val hasExternal = displays.any { it.displayId != Display.DEFAULT_DISPLAY }
         button.isEnabled = hasExternal
         if (hasExternal) {
             button.text = "Launch Samsung DeX Natively"
@@ -105,5 +114,18 @@ class MainActivity : AppCompatActivity() {
             button.text = "Launch Samsung DeX (HDMI Required)"
             button.setTextColor(android.graphics.Color.GRAY)
         }
+        
+        val sb = StringBuilder("Available Displays:\n\n")
+        displays.forEach { d ->
+            sb.append("ID: ${d.displayId}\n")
+            sb.append("Name: ${d.name}\n")
+            sb.append("State: ${d.state}\n")
+            sb.append("isValid: ${d.isValid}\n")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                sb.append("Mode: ${d.mode?.physicalWidth}x${d.mode?.physicalHeight}\n")
+            }
+            sb.append("---\n")
+        }
+        displayListText.text = sb.toString()
     }
 }
