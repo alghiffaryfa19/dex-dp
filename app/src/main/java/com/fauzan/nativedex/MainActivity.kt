@@ -1,6 +1,8 @@
 package com.fauzan.nativedex
 
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.hardware.display.DisplayManager
 import android.net.Uri
 import android.os.Bundle
@@ -9,6 +11,7 @@ import android.view.Display
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import android.app.ActivityOptions
 import android.util.Log
@@ -77,6 +80,29 @@ class MainActivity : AppCompatActivity() {
             setPadding(16, 8, 16, 8)
         }
         layout.addView(chkDecorations)
+
+        // Permission status & grant button
+        val permStatusText = TextView(this).apply {
+            textSize = 11f
+            textAlignment = android.view.View.TEXT_ALIGNMENT_CENTER
+            setPadding(16, 4, 16, 4)
+        }
+        layout.addView(permStatusText)
+
+        val btnGrantPerm = Button(this).apply {
+            text = "Grant WRITE_SECURE_SETTINGS (copy ADB command)"
+            textSize = 11f
+            setOnClickListener {
+                val cmd = "adb shell pm grant $packageName android.permission.WRITE_SECURE_SETTINGS"
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("ADB command", cmd))
+                Toast.makeText(this@MainActivity, "Command copied! Run once via ADB, then restart app.", Toast.LENGTH_LONG).show()
+            }
+        }
+        layout.addView(btnGrantPerm)
+
+        // Update permission status
+        updatePermStatus(permStatusText, btnGrantPerm)
 
         btnLaunchDeX = Button(this).apply {
             text = "Launch Samsung DeX (HDMI Required)"
@@ -174,44 +200,148 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun hasWriteSecureSettings(): Boolean {
+        return checkCallingOrSelfPermission(
+            "android.permission.WRITE_SECURE_SETTINGS"
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun updatePermStatus(statusView: TextView, grantBtn: Button) {
+        if (hasWriteSecureSettings()) {
+            statusView.text = "✅ WRITE_SECURE_SETTINGS granted — decorations will work!"
+            statusView.setTextColor(android.graphics.Color.GREEN)
+            grantBtn.visibility = android.view.View.GONE
+        } else {
+            statusView.text = "⚠️ WRITE_SECURE_SETTINGS not granted — wallpaper/decorations may not appear"
+            statusView.setTextColor(android.graphics.Color.parseColor("#FF9800"))
+            grantBtn.visibility = android.view.View.VISIBLE
+        }
+    }
+
     /**
      * Try to enable system decorations (wallpaper, statusbar, navbar) on the given display.
-     * This uses the hidden DisplayManager API via reflection.
-     * Requires WRITE_SECURE_SETTINGS permission (can be granted via ADB once).
+     * Uses multiple approaches in order of reliability.
      */
     private fun enableSystemDecorations(displayId: Int) {
+        val hasPermission = hasWriteSecureSettings()
+        Log.i(TAG, "enableSystemDecorations(display=$displayId) hasWriteSecureSettings=$hasPermission")
+
+        // Method 1: setShouldShowSystemDecors (requires WRITE_SECURE_SETTINGS)
+        if (hasPermission) {
+            try {
+                val dm = getSystemService(DISPLAY_SERVICE) as DisplayManager
+                val method = dm.javaClass.getMethod(
+                    "setShouldShowSystemDecors",
+                    Int::class.javaPrimitiveType,
+                    Boolean::class.javaPrimitiveType
+                )
+                method.invoke(dm, displayId, true)
+                Log.i(TAG, "✅ setShouldShowSystemDecors($displayId, true) succeeded!")
+            } catch (e: Exception) {
+                Log.w(TAG, "setShouldShowSystemDecors failed: ${e.message}")
+            }
+
+            // Also enable freeform & desktop mode
+            try {
+                Settings.Global.putInt(contentResolver, "force_desktop_mode_on_external_displays", 1)
+                Log.i(TAG, "✅ force_desktop_mode_on_external_displays = 1")
+            } catch (e: Exception) {
+                Log.w(TAG, "force_desktop_mode_on_external_displays failed: ${e.message}")
+            }
+
+            try {
+                Settings.Global.putInt(contentResolver, "enable_freeform_support", 1)
+                Log.i(TAG, "✅ enable_freeform_support = 1")
+            } catch (e: Exception) {
+                Log.w(TAG, "enable_freeform_support failed: ${e.message}")
+            }
+        } else {
+            Log.w(TAG, "⚠️ WRITE_SECURE_SETTINGS not granted. Run: adb shell pm grant $packageName android.permission.WRITE_SECURE_SETTINGS")
+        }
+
+        // Method 2: Samsung-specific — try to activate DeX mode via SemDesktopModeManager
+        trySamsungDesktopMode(displayId)
+
+        // Method 3: Samsung-specific — send DeX mode broadcast
+        trySamsungDexBroadcast(displayId)
+    }
+
+    /**
+     * Try Samsung SemDesktopModeManager to properly initialize DeX
+     * (which handles wallpaper/decorations internally).
+     */
+    private fun trySamsungDesktopMode(displayId: Int) {
+        // Attempt 1: SemDesktopModeManager
         try {
-            // Method 1: Try DisplayManager.setShouldShowSystemDecors (hidden API)
-            val dm = getSystemService(DISPLAY_SERVICE) as DisplayManager
-            val method = dm.javaClass.getMethod(
-                "setShouldShowSystemDecors",
+            val clazz = Class.forName("com.samsung.android.desktopmode.SemDesktopModeManager")
+            val constructor = clazz.getDeclaredConstructor(Context::class.java)
+            constructor.isAccessible = true
+            val manager = constructor.newInstance(this)
+
+            // Try setDesktopModeEnabled
+            try {
+                val enableMethod = clazz.getMethod("setDesktopModeEnabled", Boolean::class.javaPrimitiveType)
+                enableMethod.invoke(manager, true)
+                Log.i(TAG, "✅ SemDesktopModeManager.setDesktopModeEnabled(true) succeeded!")
+            } catch (e: Exception) {
+                Log.w(TAG, "setDesktopModeEnabled failed: ${e.message}")
+            }
+
+            // Try enableDesktopMode with displayId
+            try {
+                val enableOnDisplayMethod = clazz.getMethod(
+                    "enableDesktopMode",
+                    Int::class.javaPrimitiveType
+                )
+                enableOnDisplayMethod.invoke(manager, displayId)
+                Log.i(TAG, "✅ SemDesktopModeManager.enableDesktopMode($displayId) succeeded!")
+            } catch (e: Exception) {
+                Log.d(TAG, "enableDesktopMode(displayId) not available: ${e.message}")
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "SemDesktopModeManager not available (non-Samsung or different API): ${e.message}")
+        }
+
+        // Attempt 2: SemWindowManager for desktop mode
+        try {
+            val clazz = Class.forName("com.samsung.android.view.SemWindowManager")
+            val getInstanceMethod = clazz.getMethod("getInstance")
+            val instance = getInstanceMethod.invoke(null)
+
+            val setDesktopMode = clazz.getMethod(
+                "setDesktopModeEnabled",
                 Int::class.javaPrimitiveType,
                 Boolean::class.javaPrimitiveType
             )
-            method.invoke(dm, displayId, true)
-            Log.i(TAG, "setShouldShowSystemDecors($displayId, true) succeeded")
+            setDesktopMode.invoke(instance, displayId, true)
+            Log.i(TAG, "✅ SemWindowManager.setDesktopModeEnabled($displayId, true) succeeded!")
         } catch (e: Exception) {
-            Log.w(TAG, "setShouldShowSystemDecors failed (expected without WRITE_SECURE_SETTINGS): ${e.message}")
-
-            // Method 2: Try via Settings.Global
-            try {
-                Settings.Global.putString(
-                    contentResolver,
-                    "display_decoration_enabled_$displayId",
-                    "1"
-                )
-                Log.i(TAG, "Settings.Global decoration flag set for display $displayId")
-            } catch (e2: Exception) {
-                Log.w(TAG, "Settings.Global fallback also failed: ${e2.message}")
-            }
+            Log.d(TAG, "SemWindowManager not available: ${e.message}")
         }
+    }
 
-        // Method 3: Try setting IME policy to show on all displays
-        try {
-            Settings.Global.putInt(contentResolver, "force_desktop_mode_on_external_displays", 1)
-            Log.i(TAG, "force_desktop_mode_on_external_displays set to 1")
-        } catch (e: Exception) {
-            Log.w(TAG, "Could not set force_desktop_mode_on_external_displays: ${e.message}")
+    /**
+     * Try Samsung-specific broadcasts to trigger DeX mode activation.
+     */
+    private fun trySamsungDexBroadcast(displayId: Int) {
+        val broadcastActions = listOf(
+            "com.samsung.android.desktopmode.action.DESKTOP_MODE_CHANGED",
+            "com.samsung.android.knox.intent.action.DESKTOP_MODE_ENABLED",
+            "com.sec.android.desktopmode.action.DEX_CONNECTED"
+        )
+
+        for (action in broadcastActions) {
+            try {
+                val intent = Intent(action).apply {
+                    putExtra("enabled", true)
+                    putExtra("displayId", displayId)
+                    putExtra("android.intent.extra.DISPLAY_ID", displayId)
+                }
+                sendBroadcast(intent)
+                Log.i(TAG, "Sent broadcast: $action")
+            } catch (e: Exception) {
+                Log.d(TAG, "Broadcast $action failed: ${e.message}")
+            }
         }
     }
 
