@@ -84,6 +84,8 @@ class DexViewerActivity : AppCompatActivity() {
             ).apply {
                 gravity = Gravity.CENTER
             }
+            isFocusable = true
+            isFocusableInTouchMode = true
             holder.setFixedSize(activeVirtualWidth, activeVirtualHeight)
         }
         root.addView(surfaceView)
@@ -187,7 +189,12 @@ class DexViewerActivity : AppCompatActivity() {
         val scaleY = activeVirtualHeight.toFloat() / viewHeight
 
         val transformedEvent = MotionEvent.obtain(event)
-        transformedEvent.setLocation(event.x * scaleX, event.y * scaleY)
+        
+        // Use Matrix to properly scale all pointers (including multi-touch distance and mouse coordinates)
+        val matrix = android.graphics.Matrix()
+        matrix.setScale(scaleX, scaleY)
+        transformedEvent.transform(matrix)
+        
         ShizukuSessionManager.injectMotionEvent(transformedEvent)
         transformedEvent.recycle()
     }
