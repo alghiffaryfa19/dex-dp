@@ -2,7 +2,7 @@ name: Android CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "development"]
   workflow_dispatch:
 
 jobs:
@@ -36,7 +36,9 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: build-development
-          name: Build ${{ github.run_number }}
+          tag_name: build-${{ github.ref_name }}-${{ github.run_number }}
+          name: Build ${{ github.ref_name }} #${{ github.run_number }}
           files: app/build/outputs/apk/debug/app-debug.apk
           generate_release_notes: true
+          prerelease: ${{ github.ref_name != 'main' }}
+          make_latest: ${{ github.ref_name == 'main' }}
