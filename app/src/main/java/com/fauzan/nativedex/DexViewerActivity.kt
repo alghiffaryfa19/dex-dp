@@ -37,6 +37,17 @@ class DexViewerActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                val down = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK)
+                val up = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK)
+                ShizukuSessionManager.injectKeyEvent(down)
+                ShizukuSessionManager.injectKeyEvent(up)
+                ShizukuSessionManager.stopSession()
+                finish()
+            }
+        })
+
         if (!ShizukuSessionManager.hasShizukuPermission()) {
             finish()
             return
@@ -223,18 +234,6 @@ class DexViewerActivity : AppCompatActivity() {
             return true
         }
         return super.onKeyDown(keyCode, event)
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        val down = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK)
-        val up = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK)
-        ShizukuSessionManager.injectKeyEvent(down)
-        ShizukuSessionManager.injectKeyEvent(up)
-        
-        // As requested by user: Stop virtual display on back press.
-        ShizukuSessionManager.stopSession()
-        finish()
     }
 
     override fun onResume() {
