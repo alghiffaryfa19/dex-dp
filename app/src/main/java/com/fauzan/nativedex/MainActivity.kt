@@ -65,29 +65,73 @@ class MainActivity : AppCompatActivity() {
 
         val btnLaunchDeX = Button(this).apply {
             text = "Launch Samsung DeX (HDMI Required)"
-            isEnabled = false
+        }
+        layout.addView(btnLaunchDeX)
+
+        val btnCloseDeX = Button(this).apply {
+            text = "Close Samsung DeX"
+            visibility = android.view.View.GONE
+            setTextColor(android.graphics.Color.RED)
             setOnClickListener {
                 val displayManager = getSystemService(DISPLAY_SERVICE) as DisplayManager
                 val extDisplay = displayManager.displays.firstOrNull { it.displayId != Display.DEFAULT_DISPLAY }
                 if (extDisplay != null) {
                     try {
-                        val dexIntent = Intent().apply {
-                            setClassName("com.sec.android.app.launcher", "com.honeyspace.dexservice.SecondaryLauncher")
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+                        val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                            addCategory(Intent.CATEGORY_HOME)
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         }
                         val options = ActivityOptions.makeBasic()
                         options.launchDisplayId = extDisplay.displayId
-                        startActivity(dexIntent, options.toBundle())
+                        startActivity(homeIntent, options.toBundle())
                         
-                        // Also start our touchpad
-                        startActivity(Intent(this@MainActivity, TouchpadActivity::class.java))
+                        visibility = android.view.View.GONE
+                        btnLaunchDeX.visibility = android.view.View.VISIBLE
+                        statusText.text = "DeX closed on display ${extDisplay.displayId}"
                     } catch (e: Exception) {
-                        statusText.text = "Error launching DeX: ${e.message}"
+                        statusText.text = "Error closing DeX: ${e.message}"
                     }
                 }
             }
         }
-        layout.addView(btnLaunchDeX)
+        
+        btnLaunchDeX.setOnClickListener {
+            val displayManager = getSystemService(DISPLAY_SERVICE) as DisplayManager
+            val extDisplay = displayManager.displays.firstOrNull { it.displayId != Display.DEFAULT_DISPLAY }
+            if (extDisplay != null) {
+                try {
+                    val dexIntent = Intent().apply {
+                        setClassName("com.sec.android.app.launcher", "com.honeyspace.dexservice.SecondaryLauncher")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    }
+                    val options = ActivityOptions.makeBasic()
+                    options.launchDisplayId = extDisplay.displayId
+                    
+                    // Force Fullscreen windowing mode (1 = WINDOWING_MODE_FULLSCREEN)
+                    try {
+                        val method = ActivityOptions::class.java.getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType ?: Int::class.java)
+                        method.invoke(options, 1)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    
+                    startActivity(dexIntent, options.toBundle())
+                    
+                    // Also start our touchpad
+                    startActivity(Intent(this@MainActivity, TouchpadActivity::class.java))
+                    
+                    btnLaunchDeX.visibility = android.view.View.GONE
+                    btnCloseDeX.visibility = android.view.View.VISIBLE
+                    statusText.text = "DeX running on display ${extDisplay.displayId}"
+                } catch (e: Exception) {
+                    statusText.text = "Error launching DeX: ${e.message}"
+                }
+            }
+        }
+        
+        // btnLaunchDeX is already added earlier in the original code, but we need to insert btnCloseDeX right after it.
+        // Wait, the structure in the file has layout.addView(btnLaunchDeX) at line 90.
+        layout.addView(btnCloseDeX)
 
         val customLaunchTitle = TextView(this).apply {
             text = "Custom Activity Launcher"
