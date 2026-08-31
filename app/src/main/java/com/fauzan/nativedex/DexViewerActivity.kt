@@ -1,15 +1,9 @@
 package com.fauzan.nativedex
 
 import android.annotation.SuppressLint
-import android.app.ActivityOptions
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.hardware.display.DisplayManager
-import android.hardware.display.VirtualDisplay
 import android.os.Bundle
-import android.provider.Settings
-import android.util.Log
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -17,60 +11,36 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.lifecycleScope
+import com.fauzan.nativedex.shizuku.ShizukuSessionManager
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
-/**
- * Renders a VirtualDisplay on the phone's built-in screen using SurfaceView.
- * Launches Samsung's SecondaryLauncher (DeX) on the virtual display.
- * Touch input is forwarded to the virtual display via the Accessibility Service.
- *
- * This works WITHOUT ADB, Shizuku, or root.
- * Limitation: The virtual display is PRIVATE, so apps launched FROM the
- * DeX launcher may be blocked. If that happens, the user needs Shizuku.
- */
 class DexViewerActivity : AppCompatActivity() {
 
-    companion object {
-        private const val TAG = "DexViewer"
+    private lateinit var root: FrameLayout
+    private lateinit var surfaceView: SurfaceView
+    private lateinit var statusText: TextView
+    private lateinit var cursorView: ImageView
 
-        // Virtual display dimensions (landscape DeX)
-        const val VDISPLAY_WIDTH = 1920
-        const val VDISPLAY_HEIGHT = 1080
-        const val VDISPLAY_DPI = 240
-
-        // Virtual display flags (public API — no elevated permissions needed)
-        private const val FLAG_OWN_CONTENT_ONLY = DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY
-        private const val FLAG_PRESENTATION = DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION
-
-        // Hidden flags — will be stripped by the system if we don't have shell UID,
-        // but we try anyway in case Samsung allows them
-        private const val FLAG_SHOULD_SHOW_SYSTEM_DECORATIONS = 1 shl 9
-        private const val FLAG_TRUSTED = 1 shl 10
-        private const val FLAG_PUBLIC = 1 shl 0
-    }
-
-    private var virtualDisplay: VirtualDisplay? = null
-    private var surfaceView: SurfaceView? = null
-    private var statusOverlay: TextView? = null
-    private var virtualDisplayId: Int = -1
+    private var surfaceReady = false
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Full screen immersive
-        window.decorView.systemUiVisibility = (
-            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                or View.SYSTEM_UI_FLAG_FULLSCREEN
-            )
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if (!ShizukuSessionManager.hasShizukuPermission()) {
+            finish()
+            return
+        }
 
-        val rootLayout = FrameLayout(this).apply {
+        root = FrameLayout(this).apply {
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -78,303 +48,205 @@ class DexViewerActivity : AppCompatActivity() {
             setBackgroundColor(android.graphics.Color.BLACK)
         }
 
-        // SurfaceView — virtual display renders here
         surfaceView = SurfaceView(this).apply {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
-            )
+            ).apply {
+                gravity = Gravity.CENTER
+            }
         }
-        rootLayout.addView(surfaceView)
+        root.addView(surfaceView)
 
-        // Status overlay
-        statusOverlay = TextView(this).apply {
-            text = "Initializing virtual display..."
+        statusText = TextView(this).apply {
+            text = "Starting Direct Surface (Shizuku)…"
             setTextColor(android.graphics.Color.WHITE)
-            textSize = 14f
-            gravity = Gravity.CENTER
-            setBackgroundColor(0x88000000.toInt())
-            setPadding(24, 24, 24, 24)
+            textSize = 16f
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER
-            )
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                gravity = Gravity.CENTER
+            }
         }
-        rootLayout.addView(statusOverlay)
+        root.addView(statusText)
 
-        setContentView(rootLayout)
+        cursorView = ImageView(this).apply {
+            setImageResource(R.drawable.ic_cursor) // requires ic_cursor drawable
+            layoutParams = FrameLayout.LayoutParams(24, 24).apply {
+                gravity = Gravity.TOP or Gravity.START
+            }
+            visibility = View.GONE
+            elevation = 10f
+        }
+        root.addView(cursorView)
 
-        // Setup surface callbacks
-        surfaceView!!.holder.addCallback(object : SurfaceHolder.Callback {
+        setContentView(root)
+
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        hideSystemBars()
+
+        surfaceView.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(holder: SurfaceHolder) {
-                Log.i(TAG, "Surface created, creating virtual display...")
-                createVirtualDisplay(holder)
+                surfaceReady = true
+                startShizukuDisplay(holder.surface)
             }
 
-            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-                Log.i(TAG, "Surface changed: ${width}x${height}")
-            }
+            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
 
             override fun surfaceDestroyed(holder: SurfaceHolder) {
-                Log.i(TAG, "Surface destroyed, releasing virtual display")
-                releaseVirtualDisplay()
+                surfaceReady = false
+                ShizukuSessionManager.stopSession()
             }
         })
 
-        // Direct touch → forward to virtual display via accessibility service
-        surfaceView!!.setOnTouchListener { view, event ->
-            handleDirectTouch(view, event)
+        surfaceView.setOnTouchListener { view, event ->
+            forwardShizukuMotionEvent(event, view.width, view.height)
+            updateCursor(event)
+            true
+        }
+
+        surfaceView.setOnGenericMotionListener { view, event ->
+            forwardShizukuMotionEvent(event, view.width, view.height)
+            updateCursor(event)
+            true
+        }
+
+        observeShizukuState()
+    }
+
+    private var activeVirtualWidth = 1920
+    private var activeVirtualHeight = 1080
+
+    private fun startShizukuDisplay(surface: android.view.Surface) {
+        val dm = getSystemService(android.content.Context.DISPLAY_SERVICE) as android.hardware.display.DisplayManager
+        val extDisplay = dm.displays.firstOrNull { it.displayId != android.view.Display.DEFAULT_DISPLAY }
+        
+        val targetDisplay = extDisplay ?: dm.getDisplay(android.view.Display.DEFAULT_DISPLAY)
+        val mode = targetDisplay.mode
+        
+        // Ensure landscape orientation for DeX
+        var width = mode.physicalWidth
+        var height = mode.physicalHeight
+        if (width < height) {
+            val temp = width
+            width = height
+            height = temp
+        }
+
+        val dpi = 240 // Default proper DPI for DeX
+
+        activeVirtualWidth = width
+        activeVirtualHeight = height
+
+        applyAspectRatio(width, height)
+
+        lifecycleScope.launch {
+            statusText.text = "Starting Direct Surface (Shizuku)…\nResolution: ${width}x${height}"
+            ShizukuSessionManager.startSession(this@DexViewerActivity, surface, width, height, dpi)
         }
     }
 
-    private fun createVirtualDisplay(holder: SurfaceHolder) {
-        val dm = getSystemService(DISPLAY_SERVICE) as DisplayManager
-
-        // Try with all flags (decoration + trusted + public + own_content)
-        // The system will strip flags it doesn't allow, but we try anyway
-        val aggressiveFlags = FLAG_OWN_CONTENT_ONLY or
-            FLAG_PRESENTATION or
-            FLAG_SHOULD_SHOW_SYSTEM_DECORATIONS or
-            FLAG_TRUSTED or
-            FLAG_PUBLIC
-
-        var vd: VirtualDisplay? = null
-
-        // Attempt 1: Try with all flags
-        try {
-            vd = dm.createVirtualDisplay(
-                "NativeDex-Desktop",
-                VDISPLAY_WIDTH,
-                VDISPLAY_HEIGHT,
-                VDISPLAY_DPI,
-                holder.surface,
-                aggressiveFlags
-            )
-            Log.i(TAG, "Virtual display created with aggressive flags")
-        } catch (e: Exception) {
-            Log.w(TAG, "Aggressive flags failed: ${e.message}")
-        }
-
-        // Attempt 2: Try with just presentation + own_content
-        if (vd == null) {
-            try {
-                vd = dm.createVirtualDisplay(
-                    "NativeDex-Desktop",
-                    VDISPLAY_WIDTH,
-                    VDISPLAY_HEIGHT,
-                    VDISPLAY_DPI,
-                    holder.surface,
-                    FLAG_OWN_CONTENT_ONLY or FLAG_PRESENTATION
-                )
-                Log.i(TAG, "Virtual display created with presentation flags")
-            } catch (e: Exception) {
-                Log.w(TAG, "Presentation flags also failed: ${e.message}")
+    private fun observeShizukuState() {
+        lifecycleScope.launch {
+            ShizukuSessionManager.state.collectLatest { state ->
+                when (state) {
+                    is ShizukuSessionManager.State.Idle -> {}
+                    is ShizukuSessionManager.State.Connecting -> {
+                        statusText.visibility = View.VISIBLE
+                        statusText.text = "Initializing Hardware Surface…"
+                    }
+                    is ShizukuSessionManager.State.Running -> {
+                        statusText.visibility = View.GONE
+                        applyAspectRatio(state.width, state.height)
+                    }
+                    is ShizukuSessionManager.State.Error -> {
+                        statusText.visibility = View.VISIBLE
+                        statusText.text = "Error: ${state.message}"
+                    }
+                }
             }
         }
+    }
 
-        // Attempt 3: Bare minimum
-        if (vd == null) {
-            try {
-                vd = dm.createVirtualDisplay(
-                    "NativeDex-Desktop",
-                    VDISPLAY_WIDTH,
-                    VDISPLAY_HEIGHT,
-                    VDISPLAY_DPI,
-                    holder.surface,
-                    FLAG_OWN_CONTENT_ONLY
-                )
-                Log.i(TAG, "Virtual display created with minimum flags")
-            } catch (e: Exception) {
-                Log.e(TAG, "All virtual display creation attempts failed", e)
-                runOnUiThread {
-                    statusOverlay?.text = "Failed to create virtual display:\n${e.message}"
-                }
+    private fun forwardShizukuMotionEvent(event: MotionEvent, viewWidth: Int, viewHeight: Int) {
+        if (viewWidth == 0 || viewHeight == 0) return
+
+        val scaleX = activeVirtualWidth.toFloat() / viewWidth
+        val scaleY = activeVirtualHeight.toFloat() / viewHeight
+
+        val transformedEvent = MotionEvent.obtain(event)
+        transformedEvent.setLocation(event.x * scaleX, event.y * scaleY)
+        ShizukuSessionManager.injectMotionEvent(transformedEvent)
+        transformedEvent.recycle()
+    }
+
+    private fun applyAspectRatio(videoWidth: Int, videoHeight: Int) {
+        if (videoWidth == 0 || videoHeight == 0) return
+        root.post {
+            val containerWidth = root.width
+            val containerHeight = root.height
+            if (containerWidth == 0 || containerHeight == 0) return@post
+
+            val scale = minOf(
+                containerWidth.toFloat() / videoWidth,
+                containerHeight.toFloat() / videoHeight
+            )
+            val params = surfaceView.layoutParams as FrameLayout.LayoutParams
+            params.width = (videoWidth * scale).toInt()
+            params.height = (videoHeight * scale).toInt()
+            params.gravity = Gravity.CENTER
+            surfaceView.layoutParams = params
+        }
+    }
+
+    private fun updateCursor(event: MotionEvent) {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 return
             }
         }
 
-        virtualDisplay = vd
-        virtualDisplayId = vd!!.display.displayId
-        Log.i(TAG, "Virtual display ID: $virtualDisplayId")
+        val loc = IntArray(2)
+        surfaceView.getLocationInWindow(loc)
+        cursorView.translationX = loc[0] + event.x
+        cursorView.translationY = loc[1] + event.y
 
-        // If we have WRITE_SECURE_SETTINGS, try to enable decorations on the virtual display
-        if (hasWriteSecureSettings()) {
-            enableDecorationsOnDisplay(virtualDisplayId)
-        }
-
-        runOnUiThread {
-            statusOverlay?.text = "Virtual Display $virtualDisplayId created. Launching DeX..."
-            statusOverlay?.postDelayed({
-                launchSecondaryLauncher(virtualDisplayId)
-            }, 500)
+        if (cursorView.visibility != View.VISIBLE) {
+            cursorView.visibility = View.VISIBLE
         }
     }
 
-    private fun enableDecorationsOnDisplay(displayId: Int) {
-        try {
-            val dm = getSystemService(DISPLAY_SERVICE) as DisplayManager
-            val method = dm.javaClass.getMethod(
-                "setShouldShowSystemDecors",
-                Int::class.javaPrimitiveType,
-                Boolean::class.javaPrimitiveType
-            )
-            method.invoke(dm, displayId, true)
-            Log.i(TAG, "✅ setShouldShowSystemDecors($displayId, true)")
-        } catch (e: Exception) {
-            Log.w(TAG, "setShouldShowSystemDecors not available: ${e.message}")
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            ShizukuSessionManager.injectKeyEvent(event)
+            return true
         }
-
-        try {
-            Settings.Global.putInt(contentResolver, "force_desktop_mode_on_external_displays", 1)
-            Settings.Global.putInt(contentResolver, "enable_freeform_support", 1)
-            Log.i(TAG, "✅ Desktop mode + freeform settings applied")
-        } catch (e: Exception) {
-            Log.w(TAG, "Settings write failed: ${e.message}")
-        }
-
-        // Try setShouldShowIme
-        try {
-            val dm = getSystemService(DISPLAY_SERVICE) as DisplayManager
-            val method = dm.javaClass.getMethod(
-                "setShouldShowIme",
-                Int::class.javaPrimitiveType,
-                Boolean::class.javaPrimitiveType
-            )
-            method.invoke(dm, displayId, true)
-            Log.i(TAG, "✅ setShouldShowIme($displayId, true)")
-        } catch (e: Exception) {
-            Log.w(TAG, "setShouldShowIme not available: ${e.message}")
-        }
+        return super.onKeyDown(keyCode, event)
     }
 
-    private fun launchSecondaryLauncher(displayId: Int) {
-        try {
-            // Launch with SECONDARY_HOME category (like localdex)
-            val dexIntent = Intent().apply {
-                action = Intent.ACTION_MAIN
-                addCategory(Intent.CATEGORY_SECONDARY_HOME)
-                setClassName(
-                    "com.sec.android.app.launcher",
-                    "com.honeyspace.dexservice.SecondaryLauncher"
-                )
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
-            }
-
-            val options = ActivityOptions.makeBasic()
-            options.launchDisplayId = displayId
-            startActivity(dexIntent, options.toBundle())
-
-            Log.i(TAG, "✅ SecondaryLauncher launched on virtual display $displayId")
-
-            // Attach accessibility service cursor to the virtual display
-            val dm = getSystemService(DISPLAY_SERVICE) as DisplayManager
-            val display = dm.getDisplay(displayId)
-            if (display != null) {
-                NativeDexAccessibilityService.instance?.attachToDisplay(display)
-            }
-
-            statusOverlay?.visibility = View.GONE
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to launch SecondaryLauncher", e)
-
-            // Fallback: try without SECONDARY_HOME
-            try {
-                val fallbackIntent = Intent().apply {
-                    action = Intent.ACTION_MAIN
-                    setClassName(
-                        "com.sec.android.app.launcher",
-                        "com.honeyspace.dexservice.SecondaryLauncher"
-                    )
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
-                }
-                val options = ActivityOptions.makeBasic()
-                options.launchDisplayId = displayId
-                startActivity(fallbackIntent, options.toBundle())
-
-                Log.i(TAG, "✅ SecondaryLauncher launched (fallback) on display $displayId")
-                statusOverlay?.visibility = View.GONE
-            } catch (fallbackEx: Exception) {
-                Log.e(TAG, "All launch attempts failed", fallbackEx)
-                statusOverlay?.text = buildString {
-                    append("Failed to launch DeX:\n")
-                    append("${fallbackEx.message}\n\n")
-                    append("Virtual Display ID: $displayId\n")
-                    append("The display may be PRIVATE.\n")
-                    append("Consider using Shizuku for full functionality.")
-                }
-            }
-        }
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        val down = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK)
+        val up = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK)
+        ShizukuSessionManager.injectKeyEvent(down)
+        ShizukuSessionManager.injectKeyEvent(up)
+        
+        // As requested by user: Stop virtual display on back press.
+        ShizukuSessionManager.stopSession()
+        finish()
     }
 
-    /**
-     * Direct touch handling: maps touch coordinates from the SurfaceView
-     * to the virtual display coordinates and injects them via accessibility service.
-     */
-    private fun handleDirectTouch(view: View, event: MotionEvent): Boolean {
-        val accService = NativeDexAccessibilityService.instance
-        if (accService == null || virtualDisplayId == -1) return false
-
-        // Map SurfaceView coordinates → virtual display coordinates
-        val scaleX = VDISPLAY_WIDTH.toFloat() / view.width
-        val scaleY = VDISPLAY_HEIGHT.toFloat() / view.height
-        val vdX = event.x * scaleX
-        val vdY = event.y * scaleY
-
-        when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                // Update cursor position on the virtual display
-                accService.setCursorPosition(vdX, vdY)
-                return true
-            }
-            MotionEvent.ACTION_MOVE -> {
-                accService.setCursorPosition(vdX, vdY)
-                return true
-            }
-            MotionEvent.ACTION_UP -> {
-                val downDuration = event.eventTime - event.downTime
-                if (downDuration < 300) {
-                    // Short tap → click
-                    accService.injectClick(vdX, vdY, virtualDisplayId)
-                } else {
-                    // Long press
-                    accService.injectLongClick(vdX, vdY, virtualDisplayId)
-                }
-                return true
-            }
-        }
-        return false
+    override fun onResume() {
+        super.onResume()
+        hideSystemBars()
     }
 
-    private fun hasWriteSecureSettings(): Boolean {
-        return checkCallingOrSelfPermission(
-            "android.permission.WRITE_SECURE_SETTINGS"
-        ) == PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun releaseVirtualDisplay() {
-        virtualDisplay?.release()
-        virtualDisplay = null
-        virtualDisplayId = -1
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        releaseVirtualDisplay()
-    }
-
-    override fun onWindowFocusChanged(hasFocus: Boolean) {
-        super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) {
-            window.decorView.systemUiVisibility = (
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                    or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                    or View.SYSTEM_UI_FLAG_FULLSCREEN
-                )
-        }
+    private fun hideSystemBars() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        controller.hide(WindowInsetsCompat.Type.systemBars())
+        controller.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     }
 }

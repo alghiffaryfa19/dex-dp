@@ -2,7 +2,16 @@
 
 > Make zFlip 5 great again
 
-NativeDex is a utility that unlocks Samsung DeX **natively** on your device (On One UI 8.0, the Z Flip 5 simply mirrors the built-in display), without the need for ADB, Root, Shizuku, Virtual Display or USB Debugging!
+~~NativeDex is a utility that unlocks Samsung DeX **natively** on your device (On One UI 8.0, the Z Flip 5 simply mirrors the built-in display), without the need for ADB, Root, Shizuku, Virtual Display or USB Debugging!~~
+
+NativeDex is a utility that unlocks Samsung DeX on your device's built-in screen or external monitor. 
+**Update:** NativeDex now utilizes **Shizuku** and **Virtual Displays** to provide a complete DeX experience.
+
+### Why Move to Shizuku & Virtual Display? (Technical Reasons)
+In its initial iteration, NativeDex attempted to run DeX purely "natively" (directly on a *physical external display*) without the need for ADB, Shizuku, or Virtual Displays. However, this approach encountered roadblocks due to Android and Samsung One UI restrictions:
+1. **System Decorations (Wallpaper, Taskbar, Navbar):** For DeX to correctly display the wallpaper and desktop interface, Android requires the `WRITE_SECURE_SETTINGS` permission and the execution of several hidden APIs (such as `setShouldShowSystemDecors`). Without shell privileges from Shizuku/ADB, this execution silently fails, causing the DeX wallpaper to remain completely black.
+2. **Flexibility (DeX on Phone Screen):** The public API for rendering `SecondaryLauncher` on a secondary display is extremely rigid. By switching to Shizuku, we can create a *Virtual Display* with *shell privileges* that supports hidden flags like `VIRTUAL_DISPLAY_FLAG_SHOULD_SHOW_SYSTEM_DECORATIONS`. 
+3. **Better User Experience:** Thanks to the Virtual Display, DeX can now be displayed **directly on your phone's screen (built-in display)** without needing to connect via HDMI, complete with seamless direct touch input mapping.
 
 Currently tested on a **Galaxy Z Flip 5 running One UI 8.0 (Android 16)**.
 
@@ -19,28 +28,15 @@ Currently tested on a **Galaxy Z Flip 5 running One UI 8.0 (Android 16)**.
 
 ## Installation & Setup Guide
 
-Follow these steps carefully to set up NativeDex on your device:
+Follow these steps to set up NativeDex using Shizuku:
 
-1. **Download NativeDex:** Download the latest APK from the [Releases page](https://github.com/alghiffaryfa19/dex-dp/releases).
-2. **Install:** Install the downloaded APK on your device.
-3. **Grant Overlay Permission:** Open the app and activate the "Appear on top" (Draw over other apps) permission.
-4. **Return to the App:** Go back to the NativeDex application.
-5. **Enable Cursor Permissions:** Tap on the "Enable Cursor Permissions" button.
-6. **Bypass Restricted Settings:**
-   - Tap on `Installed apps` -> `NativeDex`.
-   - A pop-up saying "Restricted setting" or "App was denied access" will appear. Tap **Close**.
-7. **Allow Restricted Settings:**
-   - Go to your phone's **Settings** -> **Apps** -> **NativeDex**.
-   - Tap the 3-dot menu icon in the top right corner.
-   - Select **Allow restricted settings**.
-8. **Activate Accessibility:**
-   - Return to the NativeDex app.
-   - Tap "Enable Cursor Permissions" again.
-   - Go to `Installed apps` -> `NativeDex` and turn it **ON**.
-9. **Connect Your Display:** Return to the NativeDex app, then connect your phone to your external monitor using the HDMI hub.
-10. **Verify Connection:** Ensure your phone's screen is mirrored or displayed on the secondary monitor.
-11. **Launch DeX:** Tap the **"Launch Samsung DeX Natively"** button.
-12. **Enjoy Your Built-in Touchpad:** Due to restrictions placed by Samsung, a physical mouse cursor cannot directly appear inside DeX on this device model. To overcome this, NativeDex features a built-in, multi-touch virtual touchpad and physical mouse emulation!
+1. **Install Shizuku:** Download and install the [Shizuku app](https://shizuku.rikka.app/) from the Google Play Store or GitHub.
+2. **Start Shizuku:** Follow the instructions within the Shizuku app to start its service (typically via Wireless Debugging or ADB).
+3. **Download NativeDex:** Download the latest NativeDex APK from the [Releases page](https://github.com/alghiffaryfa19/dex-dp/releases) and install it on your device.
+4. **Open NativeDex:** Launch the NativeDex application.
+5. **Launch DeX:** Tap the **"Launch DeX on Phone Screen (Shizuku)"** button.
+6. **Grant Shizuku Permission:** When prompted by Shizuku, select "Allow all the time" to grant NativeDex the necessary shell privileges.
+7. **Enjoy DeX:** Samsung DeX will now launch seamlessly! If you have an external HDMI monitor connected, the virtual display will automatically adapt to its resolution. Otherwise, DeX will render directly on your phone's built-in display.
 
 ## Contributing & Issues
 
