@@ -29,7 +29,8 @@ class DexViewerActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var cursorView: ImageView
 
-    private var surfaceReady = false
+    private var activeVirtualWidth = 1920
+    private var activeVirtualHeight = 1080
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,6 +40,22 @@ class DexViewerActivity : AppCompatActivity() {
             finish()
             return
         }
+
+        val dm = getSystemService(android.content.Context.DISPLAY_SERVICE) as android.hardware.display.DisplayManager
+        val extDisplay = dm.displays.firstOrNull { it.displayId != android.view.Display.DEFAULT_DISPLAY }
+        val targetDisplay = extDisplay ?: dm.getDisplay(android.view.Display.DEFAULT_DISPLAY)
+        val mode = targetDisplay.mode
+        
+        // Ensure landscape orientation for DeX
+        var width = mode.physicalWidth
+        var height = mode.physicalHeight
+        if (width < height) {
+            val temp = width
+            width = height
+            height = temp
+        }
+        activeVirtualWidth = width
+        activeVirtualHeight = height
 
         root = FrameLayout(this).apply {
             layoutParams = ViewGroup.LayoutParams(
@@ -55,6 +72,7 @@ class DexViewerActivity : AppCompatActivity() {
             ).apply {
                 gravity = Gravity.CENTER
             }
+            holder.setFixedSize(activeVirtualWidth, activeVirtualHeight)
         }
         root.addView(surfaceView)
 
@@ -115,29 +133,10 @@ class DexViewerActivity : AppCompatActivity() {
         observeShizukuState()
     }
 
-    private var activeVirtualWidth = 1920
-    private var activeVirtualHeight = 1080
-
     private fun startShizukuDisplay(surface: android.view.Surface) {
-        val dm = getSystemService(android.content.Context.DISPLAY_SERVICE) as android.hardware.display.DisplayManager
-        val extDisplay = dm.displays.firstOrNull { it.displayId != android.view.Display.DEFAULT_DISPLAY }
-        
-        val targetDisplay = extDisplay ?: dm.getDisplay(android.view.Display.DEFAULT_DISPLAY)
-        val mode = targetDisplay.mode
-        
-        // Ensure landscape orientation for DeX
-        var width = mode.physicalWidth
-        var height = mode.physicalHeight
-        if (width < height) {
-            val temp = width
-            width = height
-            height = temp
-        }
-
+        val width = activeVirtualWidth
+        val height = activeVirtualHeight
         val dpi = 240 // Default proper DPI for DeX
-
-        activeVirtualWidth = width
-        activeVirtualHeight = height
 
         applyAspectRatio(width, height)
 
