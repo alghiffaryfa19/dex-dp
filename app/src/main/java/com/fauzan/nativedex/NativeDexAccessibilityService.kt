@@ -119,6 +119,17 @@ class NativeDexAccessibilityService : AccessibilityService() {
         return Pair(currentX, currentY)
     }
 
+    fun setCursorPosition(x: Float, y: Float) {
+        currentX = x.coerceIn(0f, displayWidth.toFloat())
+        currentY = y.coerceIn(0f, displayHeight.toFloat())
+
+        if (cursorView != null && layoutParams != null) {
+            layoutParams?.x = currentX.toInt()
+            layoutParams?.y = currentY.toInt()
+            windowManager?.updateViewLayout(cursorView, layoutParams)
+        }
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         // Not used
     }

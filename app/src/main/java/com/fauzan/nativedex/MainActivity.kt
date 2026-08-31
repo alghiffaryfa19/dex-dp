@@ -104,6 +104,15 @@ class MainActivity : AppCompatActivity() {
         // Update permission status
         updatePermStatus(permStatusText, btnGrantPerm)
 
+        // Virtual display on phone screen (no HDMI needed)
+        val btnVirtualDeX = Button(this).apply {
+            text = "Launch DeX on Phone Screen (Virtual Display)"
+            setOnClickListener {
+                startActivity(Intent(this@MainActivity, DexViewerActivity::class.java))
+            }
+        }
+        layout.addView(btnVirtualDeX)
+
         btnLaunchDeX = Button(this).apply {
             text = "Launch Samsung DeX (HDMI Required)"
             isEnabled = false
