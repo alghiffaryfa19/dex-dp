@@ -29,6 +29,7 @@ class DexViewerActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var cursorView: ImageView
 
+    private var surfaceReady = false
     private var activeVirtualWidth = 1920
     private var activeVirtualHeight = 1080
 
