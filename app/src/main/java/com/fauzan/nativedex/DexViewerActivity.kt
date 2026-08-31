@@ -228,14 +228,6 @@ class DexViewerActivity : AppCompatActivity() {
         }
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_BACK) {
-            ShizukuSessionManager.injectKeyEvent(event)
-            return true
-        }
-        return super.onKeyDown(keyCode, event)
-    }
-
     override fun onResume() {
         super.onResume()
         hideSystemBars()
